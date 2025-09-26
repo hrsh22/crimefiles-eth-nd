@@ -8,6 +8,10 @@
     "start": "next start",
     "lint": "next lint",
     "db:inspect": "tsx lib/db-inspect.ts",
+    "db:migrate": "tsx lib/migrate.ts up",
+    "db:migrate:down": "tsx lib/migrate.ts down",
+    "db:migrate:status": "tsx lib/migrate.ts status",
+    "db:reset": "rm -f .data/crimefiles.db && npm run db:migrate",
     "logs": "echo '💡 Start the dev server with: npm run dev' && echo '💡 Then visit the chat page and watch the logs here:' && echo '💡 You can also use: tail -f ~/.npm/_logs/*.log' || echo 'No npm logs found yet'"
   },
   "dependencies": {

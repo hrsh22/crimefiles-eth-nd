@@ -39,9 +39,10 @@ export type CaseFile = {
     timeline?: Timeline;
 };
 
-const cases: CaseFile[] = [
+// Legacy hardcoded cases - kept for reference and fallback
+const legacyCases: CaseFile[] = [
     {
-        id: "DLI-MUR-2025-0923",
+        id: "b4fa1f9a-ef3f-4f39-9b65-9a6f35288968",
         title: "The Tragedy at the Taj Bengal Restaurant",
         excerpt: "Locked-room murder, a silver letter opener, and a 'Crimson Kiss' clue.",
         story:
@@ -56,12 +57,12 @@ const cases: CaseFile[] = [
         ],
         suspects: [
             {
-                id: "s1",
+                id: "a1734a5e-2c86-47b7-8f57-17a2f8b7480c",
                 name: "Isha Kapoor",
                 description: "Estranged wife presenting a grieving facade; resentful and financially desperate.",
                 age: 38,
                 occupation: "Socialite",
-                image: "/assets/suspects/1.png",
+                image: "https://github.com/user-attachments/assets/d02d22a8-1371-482b-83d3-208ea21ae2d9",
                 gender: "F",
                 traits: [
                     "cunning and ambitious",
@@ -80,12 +81,12 @@ const cases: CaseFile[] = [
                 aiPrompt: "Role: You are Isha Kapoor, the estranged wife of the victim, Arnav Sharma. Personality: You are cunning, ambitious, and financially desperate. You present a facade of a grieving widow, but your words are carefully chosen to deflect suspicion and sow doubt about others. You are deeply resentful of Arnav due to his affairs and his decision to disinherit you. Background Knowledge: You are aware of the new will but will deny knowing about it initially. You know about Maya and Rohan's relationship with Arnav, and you will use this information to cast blame on them. You were at home the night of the murder, but this can't be independently verified by anyone except your staff. You will claim you were too distraught to speak to anyone else. Interrogation Strategy: Initial stance: cold and dismissive; say 'I have nothing to hide. I was at home, mourning.' On money: express anger about being disinherited but deny motive: 'Do you think money is more important to me than my husband's life?' On other suspects: 'Maya was always a bit too close to him. And Rohan? They hated each other. A business rival would do anything to win.' Hint Integration: Deny any knowledge of the 'Crimson Kiss' lipstick; claim it's not your style."
             },
             {
-                id: "s2",
+                id: "4e7d2e5f-8f64-4f94-8d1a-fab2b3a0b1f1",
                 name: "Rohan Mehta",
                 description: "Aggressive business rival, openly hostile toward Arnav; desperate corporate situation.",
                 age: 42,
                 occupation: "CEO, Mehta Industries",
-                image: "/assets/suspects/2.png",
+                image: "https://github.com/user-attachments/assets/3f50c15e-4481-4889-8b45-c05d38cde68e",
                 gender: "M",
                 traits: [
                     "hot-tempered and confrontational",
@@ -104,12 +105,12 @@ const cases: CaseFile[] = [
                 aiPrompt: "Role: You are Rohan Mehta, the victim's business rival. Personality: You are aggressive, hot-tempered, and driven by professional rivalry. You openly express your hatred for Arnav. You believe he cheated you out of a major contract. Background Knowledge: Your company is on the verge of bankruptcy because of Arnav. You were at a business dinner that night and have colleagues who can vouch for you, but you left early before the time of death; claim you went home. Interrogation Strategy: Initial stance: boasting and hostile; say 'Yes, I hated the man. He was a snake. But I didn't kill him.' On the contract: express extreme frustration: 'He stole it! I had every right to that contract. He used underhanded tactics.' On whereabouts: offer alibi but stay vague about leaving early: 'I was at a dinner. You can ask my colleagues. We left around 10:30 PM.' Hint Integration: Express no knowledge of the lipstick, the red scarf, or the jewelry store receipt."
             },
             {
-                id: "s3",
+                id: "c28bf9a2-9e2c-4b3c-8d4a-7f45ba9cd123",
                 name: "Maya Singh",
                 description: "Quiet, sharp personal secretary; grieving demeanor; secretly the real killer.",
                 age: 28,
                 occupation: "Personal Secretary",
-                image: "/assets/suspects/3.png",
+                image: "https://github.com/user-attachments/assets/f3bbfe5d-bca3-4e96-acd9-1459782c91cc",
                 gender: "F",
                 traits: [
                     "quiet but incisive",
@@ -159,7 +160,14 @@ const cases: CaseFile[] = [
     },
 ];
 
-export const getCases = (): CaseFile[] => cases;
+// Try to load from database first, fall back to legacy data
+let cachedCases: CaseFile[] | null = null;
 
-export const getCaseById = (id: string): CaseFile | undefined =>
-    cases.find((c) => c.id === id);
+export const getCases = (): CaseFile[] => {
+    // Keep legacy data for client-only usage; DB is accessed server-side
+    if (cachedCases) return cachedCases;
+    cachedCases = legacyCases;
+    return legacyCases;
+};
+
+export const getCaseById = (id: string): CaseFile | undefined => legacyCases.find((c) => c.id === id);

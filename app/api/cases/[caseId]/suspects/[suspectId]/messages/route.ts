@@ -3,7 +3,7 @@ import { getOrCreateOpenThread, insertMessage, listMessages } from "@/lib/db";
 import type { AgentRequest } from "@/types/api";
 import { getLlmProvider } from "@/lib/providers/llm";
 import { buildSuspectSystemPrompt } from "@/lib/prompts";
-import { getCaseById } from "@/app/case-files/cases";
+import { getCaseFromDb } from "@/lib/case-helpers";
 
 export const runtime = "nodejs";
 
@@ -34,7 +34,7 @@ export async function POST(req: NextRequest) {
 
         // Build context and system prompt
         const prior = listMessages(thread.id);
-        const caseFile = getCaseById(caseId);
+        const caseFile = await getCaseFromDb(caseId);
         const suspect = caseFile?.suspects.find(s => s.id === suspectId);
 
         // Build system prompt (ASI:One needs actual conversation messages)
