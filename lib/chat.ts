@@ -1,5 +1,4 @@
 import { buildSuspectSystemPrompt } from "./prompts";
-import { getCaseById } from "@/app/case-files/cases";
 import type { CaseFile, Suspect } from "@/app/case-files/cases";
 import type { ChatMessage } from "@/types/api";
 
@@ -11,9 +10,12 @@ export function synthesizeSuspectReply(params: {
     suspectId: string;
     history: ChatMessage[];
 }): { text: string } {
-    const caseFile = getCaseById(params.caseId) as CaseFile | undefined;
-    if (!caseFile) return { text: "I don't have details about this case yet." };
-    const suspect = caseFile.suspects.find(s => s.id === params.suspectId) as Suspect | undefined;
+    // Fallback placeholder: since server now uses DB-backed cases for LLM,
+    // this function is retained for MVP heuristic replies only when case is provided externally.
+    // Without a case file, return a generic response.
+    const caseFile = undefined as unknown as CaseFile | undefined;
+    const suspect = undefined as unknown as Suspect | undefined;
+    if (!caseFile || !suspect) return { text: "I will answer within reason. Keep your questions specific." };
     if (!suspect) return { text: "I am not involved in this case." };
 
     // Keep alignment with system prompt structure, even if not used directly in MVP.

@@ -1,5 +1,5 @@
 import { createCase, createSuspect, createHint, createTimeline, createTimelineTick, createTimelineLane, createTimelineEvent } from './db';
-import { CaseFile } from '@/app/case-files/cases';
+import type { CaseFile } from '@/app/case-files/cases';
 
 /**
  * Migration function to seed the database with hardcoded case data
@@ -9,9 +9,8 @@ export async function migrateCaseData(): Promise<void> {
     console.log('🚀 Starting case data migration...');
 
     try {
-        // Import the hardcoded cases data
-        const casesModule = await import('@/app/case-files/cases');
-        const cases: CaseFile[] = casesModule.getCases();
+        // Import the legacy cases (now only types) replaced by direct seed in 0002
+        const cases: CaseFile[] = [];
 
         for (const caseFile of cases) {
             console.log(`📁 Migrating case: ${caseFile.title}`);

@@ -2,15 +2,28 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { getCaseById } from "../cases";
 import Wallet from "@/app/wallet";
 import { useAccount } from 'wagmi';
+import { useQuery } from '@tanstack/react-query';
 import { Volume2, Loader2, Square } from "lucide-react";
 
 export default function CaseDetailPage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = React.use(params as Promise<{ id: string }>);
-    const caseFile = useMemo(() => getCaseById(id), [id]);
     const { isConnected, address } = useAccount();
+
+    const { data: caseFile, isLoading, error } = useQuery({
+        queryKey: ['case', id],
+        queryFn: async () => {
+            const res = await fetch(`/api/admin/cases/${encodeURIComponent(id)}`);
+            if (!res.ok) {
+                if (res.status === 404) throw new Error('Case not found');
+                throw new Error('Failed to fetch case');
+            }
+            const data = await res.json();
+            return data.case;
+        },
+        enabled: isConnected && !!id,
+    });
 
     // Frontend-only: rely on local cases; skip remote fetch
 
@@ -47,7 +60,7 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
     useEffect(() => {
         const t = caseFile?.timeline;
         if (!t) return;
-        setVisibleLaneIds(t.lanes.filter(l => l.kind !== 'solution').map(l => l.id));
+        setVisibleLaneIds(t.lanes.filter((l: any) => l.kind !== 'solution').map((l: any) => l.id));
         const defaults = new Set<string>(Array.from(allTags));
         defaults.delete('Solution');
         setActiveTags(defaults);
@@ -72,7 +85,7 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
 
     const selectedSuspect = useMemo(() => {
         if (!caseFile) return undefined;
-        return caseFile.suspects.find((s) => s.id === selectedSuspectId);
+        return caseFile.suspects.find((s: any) => s.id === selectedSuspectId);
     }, [caseFile, selectedSuspectId]);
 
     const visibleHintsCount = useMemo(() => {
@@ -189,7 +202,7 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
     const switchInterrogationTo = (direction: "prev" | "next") => {
         if (!caseFile || !caseFile.suspects.length) return;
         stopTts();
-        const idx = caseFile.suspects.findIndex((s) => s.id === selectedSuspectId);
+        const idx = caseFile.suspects.findIndex((s: any) => s.id === selectedSuspectId);
         const len = caseFile.suspects.length;
         const nextIdx = direction === "prev" ? (idx <= 0 ? len - 1 : idx - 1) : (idx >= len - 1 ? 0 : idx + 1);
         const nextId = caseFile.suspects[nextIdx].id;
@@ -248,24 +261,51 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
     }, [isInterrogationOpen]);
 
     if (!isConnected) {
+        return <Wallet />;
+    }
+
+    if (isLoading) {
         return (
-            <Wallet />
+            <div className="h-[calc(100vh-4rem)] grid place-items-center bg-gradient-to-b from-[#0b0c10] via-[#0f1218] to-[#0b0c10] text-white">
+                <div className="text-center">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mx-auto mb-4"></div>
+                    <p className="font-funnel-display">Loading case...</p>
+                </div>
+            </div>
         );
     }
 
-    // Local-only: no loading state
+    if (error) {
+        return (
+            <div className="h-[calc(100vh-4rem)] grid place-items-center bg-gradient-to-b from-[#0b0c10] via-[#0f1218] to-[#0b0c10] text-white">
+                <div className="max-w-xl w-full px-6 py-10 bg-[#121417] border border-zinc-700/60 text-center">
+                    <h1 className="text-2xl font-funnel-display mb-4">Case not found</h1>
+                    <p className="text-zinc-400 mb-6">The case you&apos;re looking for doesn&apos;t exist or couldn&apos;t be loaded.</p>
+                    <div className="flex gap-4 justify-center">
+                        <Link href="/case-files" className="border border-amber-400/60 text-amber-300 px-4 py-2 hover:bg-amber-400/10">
+                            ← Back to all cases
+                        </Link>
+                        <button
+                            onClick={() => window.location.reload()}
+                            className="border border-white/40 px-4 py-2 hover:bg-white/10"
+                        >
+                            Retry
+                        </button>
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     if (!caseFile) {
         return (
-            <div className="h-[calc(100vh-4rem)] grid place-items-center bg-gradient-to-b from-[#0b0c10] via-[#0f1218] to-[#0b0c10] text-zinc-100">
-                <div className="max-w-xl w-full px-6 py-10 bg-[#121417] border border-zinc-700/60">
-                    <h1 className="text-2xl font-funnel-display">Case not found</h1>
-                    <p className="text-zinc-400 mt-2">The case you&apos;re looking for doesn&apos;t exist or couldn&apos;t be fetched.</p>
-                    <div className="mt-6">
-                        <Link href="/case-files" className="inline-block border border-amber-400/60 text-amber-300 px-4 py-2">
-                            ← Back to all cases
-                        </Link>
-                    </div>
+            <div className="h-[calc(100vh-4rem)] grid place-items-center bg-gradient-to-b from-[#0b0c10] via-[#0f1218] to-[#0b0c10] text-white">
+                <div className="max-w-xl w-full px-6 py-10 bg-[#121417] border border-zinc-700/60 text-center">
+                    <h1 className="text-2xl font-funnel-display mb-4">Case not found</h1>
+                    <p className="text-zinc-400 mb-6">The case you&apos;re looking for doesn&apos;t exist.</p>
+                    <Link href="/case-files" className="border border-amber-400/60 text-amber-300 px-4 py-2 hover:bg-amber-400/10">
+                        ← Back to all cases
+                    </Link>
                 </div>
             </div>
         );
@@ -326,7 +366,7 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
                                         <div className="mt-5 flex flex-wrap items-center gap-3">
                                             <div className="text-[11px] uppercase tracking-widest text-white/60">Key suspects</div>
                                             <div className="flex -space-x-2">
-                                                {caseFile.suspects.slice(0, 5).map((s) => (
+                                                {caseFile.suspects.slice(0, 5).map((s: any) => (
                                                     <Image key={s.id} src={s.image || "/suspect.png"} alt={s.name} width={36} height={36} className="h-9 w-9 rounded-full object-cover ring-1 ring-white/20" />
                                                 ))}
                                             </div>
@@ -359,7 +399,7 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
                             <h2 className="text-4xl font-funnel-display mb-2">Hints</h2>
                             <p className="text-white/70 font-funnel-display mb-6">Clues gathered so far</p>
                             <ul className="mt-3 space-y-3">
-                                {caseFile.hints.map((hint, idx) => {
+                                {caseFile.hints.map((hint: any, idx: number) => {
                                     const isUnlocked = idx < visibleHintsCount;
                                     return (
                                         <li key={idx} className="flex items-center gap-3 font-funnel-display">
