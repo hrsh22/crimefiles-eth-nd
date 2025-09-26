@@ -5,25 +5,15 @@ import Link from "next/link";
 import Wallet from "@/app/wallet";
 import { useAccount } from 'wagmi';
 import { useQuery } from '@tanstack/react-query';
+import { useThread, useOptimisticSendMessage } from '@/lib/hooks/useChat';
+import { useCase } from '@/lib/hooks/useCases';
 import { Volume2, Loader2, Square } from "lucide-react";
 
 export default function CaseDetailPage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = React.use(params as Promise<{ id: string }>);
     const { isConnected, address } = useAccount();
 
-    const { data: caseFile, isLoading, error } = useQuery({
-        queryKey: ['case', id],
-        queryFn: async () => {
-            const res = await fetch(`/api/admin/cases/${encodeURIComponent(id)}`);
-            if (!res.ok) {
-                if (res.status === 404) throw new Error('Case not found');
-                throw new Error('Failed to fetch case');
-            }
-            const data = await res.json();
-            return data.case;
-        },
-        enabled: isConnected && !!id,
-    });
+    const { data: caseFile, isLoading, error } = useCase(id, isConnected && !!id);
 
     // Frontend-only: rely on local cases; skip remote fetch
 
@@ -173,23 +163,29 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
         }
     };
 
-    const hydrateMessagesForSuspect = async (suspectIdToLoad?: string) => {
-        try {
-            setChatInput("");
-            setMessages([]);
-            const suspectId = suspectIdToLoad || selectedSuspectId;
-            if (!caseFile || !suspectId || !address) return;
+    // Use TanStack Query for thread data
+    const { data: threadData, isLoading: threadLoading } = useThread(
+        address || "",
+        caseFile?.id || "",
+        selectedSuspectId,
+        isConnected && !!caseFile && !!selectedSuspectId && !!address
+    );
 
-            const res = await fetch(`/api/cases/${encodeURIComponent(caseFile.id)}/suspects/${encodeURIComponent(suspectId)}/thread?userAddress=${encodeURIComponent(address!)}`);
-            if (!res.ok) return;
-
-            const data = await res.json();
-            const msgs = (data.messages || []) as Array<{ role: "user" | "assistant"; content: string }>;
-            const mapped = msgs.map(m => ({ sender: m.role === "user" ? "you" as const : "suspect" as const, text: m.content }));
+    // Update messages when thread data changes
+    useEffect(() => {
+        if (threadData?.messages) {
+            const mapped = threadData.messages.map(m => ({
+                sender: m.role === "user" ? "you" as const : "suspect" as const,
+                text: m.content
+            }));
             setMessages(mapped);
-        } catch (error) {
-            console.error("💥 Error loading messages:", error);
         }
+    }, [threadData]);
+
+    const hydrateMessagesForSuspect = async (suspectIdToLoad?: string) => {
+        setChatInput("");
+        setMessages([]);
+        // The useThread hook will automatically refetch when selectedSuspectId changes
     };
 
     const openInterrogation = async (suspectId: string) => {
@@ -215,28 +211,24 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
         setIsInterrogationOpen(false);
     };
 
+    const sendMessageMutation = useOptimisticSendMessage();
+
     const handleSendMessage = async () => {
         const trimmed = chatInput.trim();
-        if (!trimmed || !selectedSuspectId || isSending || !address) return;
+        if (!trimmed || !selectedSuspectId || isSending || !address || !caseFile) return;
 
         console.log(`💬 Sending message to suspect: ${selectedSuspectId}`);
         const userMsg = { sender: "you" as const, text: trimmed };
-        const nextAfterUser = [...messages, userMsg];
-        setMessages(nextAfterUser);
         setChatInput("");
 
         try {
             setIsSending(true);
-            const res = await fetch(`/api/cases/${encodeURIComponent(caseFile!.id)}/suspects/${encodeURIComponent(selectedSuspectId)}/messages`, {
-                method: "POST",
-                headers: { "content-type": "application/json" },
-                body: JSON.stringify({ userMessage: trimmed, userAddress: address })
+            await sendMessageMutation.mutateAsync({
+                caseId: caseFile.id,
+                suspectId: selectedSuspectId,
+                data: { userMessage: trimmed, userAddress: address },
+                optimisticMessage: { role: "user" as const, content: trimmed }
             });
-            if (!res.ok) throw new Error("Failed to send message");
-
-            const data = await res.json();
-            const assistantMsg = { sender: "suspect" as const, text: String(data.response || "...") };
-            setMessages([...nextAfterUser, assistantMsg]);
         } catch (error) {
             console.error("💥 Failed to send message:", error);
         } finally {

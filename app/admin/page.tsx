@@ -1,67 +1,28 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
+import {
+    useCases,
+    useCreateCase,
+    useDeleteCase,
+    useCreateHint,
+    useCreateSuspect,
+    type Case,
+    type Suspect,
+    type CreateSuspectData
+} from "@/lib/hooks/useCases";
 
-type Case = {
-    id: string;
-    title: string;
-    excerpt: string;
-    story: string;
-    hints: string[];
-    suspects: Suspect[];
-    timeline?: Timeline;
-};
-
-type Suspect = {
-    id: string;
-    name: string;
-    age: number;
-    occupation: string;
-    image: string;
-    gender: string;
-    traits?: string[];
-    mannerisms?: string[];
-    aiPrompt?: string;
-    whereabouts?: string[];
-};
-
-type Timeline = {
-    ticks: TimelineTick[];
-    lanes: TimelineLane[];
-    events: TimelineEvent[];
-};
-
-type TimelineTick = { id: string; label: string };
-type TimelineLane = { id: string; title: string; kind: "victim" | "suspect" | "witness" | "solution" };
-type TimelineEvent = { id: string; laneId: string; title: string; startTick: number; endTick?: number; tags?: string[] };
 
 export default function AdminPage() {
     const [activeTab, setActiveTab] = useState("cases");
-    const [cases, setCases] = useState<Case[]>([]);
-    const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState("");
     const [selectedCase, setSelectedCase] = useState<Case | null>(null);
     const [showCreateForm, setShowCreateForm] = useState(false);
     const [newCase, setNewCase] = useState({ title: "", excerpt: "", story: "" });
 
-    useEffect(() => {
-        loadCases();
-    }, []);
-
-    const loadCases = async () => {
-        try {
-            setLoading(true);
-            const res = await fetch("/api/admin/cases");
-            const data = await res.json();
-            if (data.cases) {
-                setCases(data.cases);
-            }
-        } catch (error) {
-            console.error("Failed to load cases:", error);
-            setMessage("Failed to load cases");
-        } finally {
-            setLoading(false);
-        }
-    };
+    // TanStack Query hooks
+    const { data: cases = [], isLoading, error } = useCases();
+    const createCaseMutation = useCreateCase();
+    const deleteCaseMutation = useDeleteCase();
 
     const handleCreateCase = async () => {
         if (!newCase.title || !newCase.excerpt || !newCase.story) {
@@ -70,26 +31,12 @@ export default function AdminPage() {
         }
 
         try {
-            setLoading(true);
-            const res = await fetch("/api/admin/cases", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(newCase)
-            });
-            const data = await res.json();
-
-            if (res.ok) {
-                setMessage("Case created successfully");
-                setNewCase({ title: "", excerpt: "", story: "" });
-                setShowCreateForm(false);
-                await loadCases();
-            } else {
-                setMessage(data.error || "Failed to create case");
-            }
-        } catch {
-            setMessage("Failed to create case");
-        } finally {
-            setLoading(false);
+            await createCaseMutation.mutateAsync(newCase);
+            setMessage("Case created successfully");
+            setNewCase({ title: "", excerpt: "", story: "" });
+            setShowCreateForm(false);
+        } catch (error) {
+            setMessage(error instanceof Error ? error.message : "Failed to create case");
         }
     };
 
@@ -97,20 +44,10 @@ export default function AdminPage() {
         if (!confirm("Are you sure you want to delete this case?")) return;
 
         try {
-            setLoading(true);
-            const res = await fetch(`/api/admin/cases?id=${encodeURIComponent(caseId)}`, { method: "DELETE" });
-            const data = await res.json();
-
-            if (res.ok) {
-                setMessage("Case deleted successfully");
-                await loadCases();
-            } else {
-                setMessage(data.error || "Failed to delete case");
-            }
-        } catch {
-            setMessage("Failed to delete case");
-        } finally {
-            setLoading(false);
+            await deleteCaseMutation.mutateAsync(caseId);
+            setMessage("Case deleted successfully");
+        } catch (error) {
+            setMessage(error instanceof Error ? error.message : "Failed to delete case");
         }
     };
 
@@ -154,10 +91,10 @@ export default function AdminPage() {
                         <div className="flex gap-2">
                             <button
                                 onClick={handleCreateCase}
-                                disabled={loading}
+                                disabled={createCaseMutation.isPending}
                                 className="border border-green-500 text-green-500 px-4 py-2 hover:bg-green-500/10"
                             >
-                                {loading ? "Creating..." : "Create Case"}
+                                {createCaseMutation.isPending ? "Creating..." : "Create Case"}
                             </button>
                             <button
                                 onClick={() => setShowCreateForm(false)}
@@ -188,10 +125,10 @@ export default function AdminPage() {
                                 </button>
                                 <button
                                     onClick={() => handleDeleteCase(case_.id)}
-                                    disabled={loading}
+                                    disabled={deleteCaseMutation.isPending}
                                     className="border border-red-500 text-red-500 px-3 py-1 text-sm hover:bg-red-500/10"
                                 >
-                                    Delete
+                                    {deleteCaseMutation.isPending ? "Deleting..." : "Delete"}
                                 </button>
                             </div>
                         </div>
@@ -222,10 +159,10 @@ export default function AdminPage() {
                         {cases.map(c => <option key={c.id} value={c.id} />)}
                     </datalist>
                     <button
-                        disabled={!selectedCase || loading}
+                        disabled={!selectedCase}
                         className="border border-white/40 px-4 py-2 hover:bg-white/10 disabled:opacity-50"
                     >
-                        {loading ? "Processing…" : "Reveal & Distribute"}
+                        Reveal & Distribute
                     </button>
                 </div>
 
@@ -264,17 +201,48 @@ export default function AdminPage() {
 
                     <div className="border border-white/10 p-4 bg-white/5">
                         <h3 className="font-bold mb-2">Hints ({selectedCase.hints.length})</h3>
-                        <HintEditor caseId={selectedCase.id} initialHints={selectedCase.hints} onChanged={loadCases} />
+                        <HintEditor caseId={selectedCase.id} initialHints={selectedCase.hints} onChanged={() => { }} />
                     </div>
 
                     <div className="border border-white/10 p-4 bg-white/5">
                         <h3 className="font-bold mb-2">Suspects ({selectedCase.suspects.length})</h3>
-                        <SuspectsEditor caseId={selectedCase.id} suspects={selectedCase.suspects} onChanged={loadCases} />
+                        <SuspectsEditor caseId={selectedCase.id} suspects={selectedCase.suspects} onChanged={() => { }} />
                     </div>
                 </div>
             </div>
         );
     };
+
+    if (isLoading) {
+        return (
+            <main className="min-h-[calc(100vh-4rem)] bg-black text-white p-6">
+                <div className="max-w-6xl mx-auto">
+                    <div className="text-center">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mx-auto mb-4"></div>
+                        <p className="font-funnel-display">Loading cases...</p>
+                    </div>
+                </div>
+            </main>
+        );
+    }
+
+    if (error) {
+        return (
+            <main className="min-h-[calc(100vh-4rem)] bg-black text-white p-6">
+                <div className="max-w-6xl mx-auto">
+                    <div className="text-center">
+                        <p className="text-red-400">Failed to load cases: {error.message}</p>
+                        <button
+                            onClick={() => window.location.reload()}
+                            className="mt-4 border border-white/40 px-4 py-2 hover:bg-white/10"
+                        >
+                            Retry
+                        </button>
+                    </div>
+                </div>
+            </main>
+        );
+    }
 
     return (
         <main className="min-h-[calc(100vh-4rem)] bg-black text-white p-6">
@@ -312,24 +280,17 @@ export default function AdminPage() {
 
 function HintEditor({ caseId, initialHints, onChanged }: { caseId: string; initialHints: string[]; onChanged: () => Promise<void> | void }) {
     const [newHint, setNewHint] = useState("");
-    const [busy, setBusy] = useState(false);
+    const createHintMutation = useCreateHint();
 
     const addHint = async () => {
         const text = newHint.trim();
         if (!text) return;
         try {
-            setBusy(true);
-            const res = await fetch(`/api/admin/cases/${encodeURIComponent(caseId)}/hints`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ hintText: text })
-            });
-            if (res.ok) {
-                setNewHint("");
-                await onChanged();
-            }
-        } finally {
-            setBusy(false);
+            await createHintMutation.mutateAsync({ caseId, data: { hintText: text } });
+            setNewHint("");
+            await onChanged();
+        } catch (error) {
+            console.error("Failed to create hint:", error);
         }
     };
 
@@ -345,31 +306,29 @@ function HintEditor({ caseId, initialHints, onChanged }: { caseId: string; initi
             </ul>
             <div className="flex gap-2">
                 <input value={newHint} onChange={(e) => setNewHint(e.target.value)} placeholder="New hint" className="flex-1 border border-white/20 px-3 py-2 bg-transparent" />
-                <button onClick={addHint} disabled={busy || !newHint.trim()} className="border border-white/40 px-3 py-2 hover:bg-white/10 disabled:opacity-50">Add</button>
+                <button onClick={addHint} disabled={createHintMutation.isPending || !newHint.trim()} className="border border-white/40 px-3 py-2 hover:bg-white/10 disabled:opacity-50">
+                    {createHintMutation.isPending ? "Adding..." : "Add"}
+                </button>
             </div>
         </div>
     );
 }
 
 function SuspectsEditor({ caseId, suspects, onChanged }: { caseId: string; suspects: Suspect[]; onChanged: () => Promise<void> | void }) {
-    const [busy, setBusy] = useState<string | null>(null);
-    const [form, setForm] = useState<Partial<Suspect>>({ name: "", age: 30, occupation: "", image: "/suspect.png", gender: "M" });
+    const [form, setForm] = useState<Partial<CreateSuspectData>>({ name: "", age: 30, occupation: "", image: "/suspect.png", gender: "M" });
+    const createSuspectMutation = useCreateSuspect();
 
     const addSuspect = async () => {
         if (!form.name || !form.occupation || !form.image || !form.gender || !form.age) return;
         try {
-            setBusy("add");
-            const res = await fetch(`/api/admin/cases/${encodeURIComponent(caseId)}/suspects`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(form)
+            await createSuspectMutation.mutateAsync({
+                caseId,
+                data: form as CreateSuspectData
             });
-            if (res.ok) {
-                setForm({ name: "", age: 30, occupation: "", image: "/suspect.png", gender: "M" });
-                await onChanged();
-            }
-        } finally {
-            setBusy(null);
+            setForm({ name: "", age: 30, occupation: "", image: "/suspect.png", gender: "M" });
+            await onChanged();
+        } catch (error) {
+            console.error("Failed to create suspect:", error);
         }
     };
 
@@ -401,7 +360,9 @@ function SuspectsEditor({ caseId, suspects, onChanged }: { caseId: string; suspe
                     <input value={form.image || ""} onChange={(e) => setForm({ ...form, image: e.target.value })} placeholder="Image URL" className="border border-white/20 px-3 py-2 bg-transparent md:col-span-2" />
                 </div>
                 <div className="mt-2">
-                    <button onClick={addSuspect} disabled={busy === "add"} className="border border-white/40 px-3 py-2 hover:bg-white/10 disabled:opacity-50">{busy === "add" ? "Adding..." : "Add Suspect"}</button>
+                    <button onClick={addSuspect} disabled={createSuspectMutation.isPending} className="border border-white/40 px-3 py-2 hover:bg-white/10 disabled:opacity-50">
+                        {createSuspectMutation.isPending ? "Adding..." : "Add Suspect"}
+                    </button>
                 </div>
             </div>
         </div>

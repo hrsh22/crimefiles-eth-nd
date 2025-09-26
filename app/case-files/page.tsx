@@ -4,22 +4,13 @@ import Link from "next/link";
 import Image from "next/image";
 import Wallet from "../wallet";
 import { useAccount } from 'wagmi';
-import { useQuery } from '@tanstack/react-query';
+import { useCases } from '@/lib/hooks/useCases';
 
 export default function CaseFilesIndexPage() {
     const { isConnected } = useAccount();
     const [blockClicks, setBlockClicks] = useState(false);
 
-    const { data: cases = [], isLoading, error } = useQuery({
-        queryKey: ['cases'],
-        queryFn: async () => {
-            const res = await fetch('/api/admin/cases');
-            if (!res.ok) throw new Error('Failed to fetch cases');
-            const data = await res.json();
-            return data.cases || [];
-        },
-        enabled: isConnected,
-    });
+    const { data: cases = [], isLoading, error } = useCases();
 
     useEffect(() => {
         if (isConnected) {
