@@ -10,7 +10,7 @@ import { Volume2, Loader2, Square } from "lucide-react";
 export default function CaseDetailPage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = React.use(params as Promise<{ id: string }>);
     const caseFile = useMemo(() => getCaseById(id), [id]);
-    const { isConnected } = useAccount();
+    const { isConnected, address } = useAccount();
 
     // Frontend-only: rely on local cases; skip remote fetch
 
@@ -160,15 +160,30 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
         }
     };
 
-    const hydrateMessagesForSuspect = () => {
-        setChatInput("");
-        setMessages([]);
+    const hydrateMessagesForSuspect = async (suspectIdToLoad?: string) => {
+        try {
+            setChatInput("");
+            setMessages([]);
+            const suspectId = suspectIdToLoad || selectedSuspectId;
+            if (!caseFile || !suspectId || !address) return;
+
+            const res = await fetch(`/api/cases/${encodeURIComponent(caseFile.id)}/suspects/${encodeURIComponent(suspectId)}/thread?userAddress=${encodeURIComponent(address!)}`);
+            if (!res.ok) return;
+
+            const data = await res.json();
+            const msgs = (data.messages || []) as Array<{ role: "user" | "assistant"; content: string }>;
+            const mapped = msgs.map(m => ({ sender: m.role === "user" ? "you" as const : "suspect" as const, text: m.content }));
+            setMessages(mapped);
+        } catch (error) {
+            console.error("💥 Error loading messages:", error);
+        }
     };
 
     const openInterrogation = async (suspectId: string) => {
+        if (!address) return; // Wallet connection required
         setSelectedSuspectId(suspectId);
         setIsInterrogationOpen(true);
-        hydrateMessagesForSuspect();
+        await hydrateMessagesForSuspect(suspectId); // Pass the suspectId directly to avoid race condition
     };
 
     const switchInterrogationTo = (direction: "prev" | "next") => {
@@ -179,7 +194,7 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
         const nextIdx = direction === "prev" ? (idx <= 0 ? len - 1 : idx - 1) : (idx >= len - 1 ? 0 : idx + 1);
         const nextId = caseFile.suspects[nextIdx].id;
         setSelectedSuspectId(nextId);
-        hydrateMessagesForSuspect();
+        hydrateMessagesForSuspect(nextId); // Pass the nextId directly to avoid race condition
     };
 
     const closeInterrogation = () => {
@@ -189,8 +204,9 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
 
     const handleSendMessage = async () => {
         const trimmed = chatInput.trim();
-        if (!trimmed || !selectedSuspectId || isSending) return;
+        if (!trimmed || !selectedSuspectId || isSending || !address) return;
 
+        console.log(`💬 Sending message to suspect: ${selectedSuspectId}`);
         const userMsg = { sender: "you" as const, text: trimmed };
         const nextAfterUser = [...messages, userMsg];
         setMessages(nextAfterUser);
@@ -198,18 +214,18 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
 
         try {
             setIsSending(true);
-            const name = selectedSuspect?.name || "Suspect";
-            const occupation = selectedSuspect?.occupation ? ` (${selectedSuspect.occupation})` : "";
-            const cautious = selectedSuspect?.traits?.includes("quiet and incisive") || selectedSuspect?.traits?.includes("emotionally controlled");
-            const reply = cautious
-                ? `${name}${occupation}: "${trimmed.length > 80 ? "That's a lot to take in." : "I don't have more to add right now."} But if you have something concrete, say it clearly."`
-                : `${name}${occupation}: "${trimmed.endsWith("?") ? "Maybe. Maybe not." : "Listen."} I won't be pushed around. Ask something real."`;
-            await new Promise((r) => setTimeout(r, 400));
-            const assistantMsg = { sender: "suspect" as const, text: reply };
-            const nextAfterAssistant = [...nextAfterUser, assistantMsg];
-            setMessages(nextAfterAssistant);
+            const res = await fetch(`/api/cases/${encodeURIComponent(caseFile!.id)}/suspects/${encodeURIComponent(selectedSuspectId)}/messages`, {
+                method: "POST",
+                headers: { "content-type": "application/json" },
+                body: JSON.stringify({ userMessage: trimmed, userAddress: address })
+            });
+            if (!res.ok) throw new Error("Failed to send message");
+
+            const data = await res.json();
+            const assistantMsg = { sender: "suspect" as const, text: String(data.response || "...") };
+            setMessages([...nextAfterUser, assistantMsg]);
         } catch (error) {
-            console.error("Failed to create local response:", error);
+            console.error("💥 Failed to send message:", error);
         } finally {
             setIsSending(false);
         }

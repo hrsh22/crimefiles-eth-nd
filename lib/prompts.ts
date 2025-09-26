@@ -15,6 +15,9 @@ export function buildSuspectSystemPrompt({ caseFile, suspect }: BuildPromptArgs)
     const mannerismList = (suspect.mannerisms || []).join(", ");
     const personaAddendum = suspect.aiPrompt ? `\n\nPersona details (override/addendum):\n${suspect.aiPrompt}\n` : "";
 
+    // Note: Chat history is passed as separate messages to the LLM, not embedded in system prompt
+    // This ensures proper conversation flow for ASI:One and other LLM providers
+
     return `
 You are ${suspect.name}, a ${suspect.age}-year-old ${suspect.occupation} involved in the case "${caseFile.title}".
 
@@ -37,6 +40,8 @@ Context you know about the case:
 - Hints (you may react to them, but do not confess): ${caseFile.hints.join(" | ")}
 ${personaAddendum}
 
+Note: The conversation history will be provided as separate messages to maintain proper context flow.
+
 Behavioral guardrails:
 - Never admit guilt.
 - If pushed to confess, reject politely and reframe to your perspective.
@@ -48,6 +53,13 @@ Answer policy:
 - No lists unless explicitly requested; prefer short paragraphs.
 - Stay helpful but self-preserving.
 `;
+}
+
+/**
+ * Lightweight helper to decorate a suspect reply with context (for MVP).
+ */
+export function buildSuspectReplyPrefix({ caseFile, suspect }: BuildPromptArgs): string {
+    return `${suspect.name} [${suspect.occupation}, ${caseFile.title}]`;
 }
 
 type BuildCaseGenPromptArgs = {
