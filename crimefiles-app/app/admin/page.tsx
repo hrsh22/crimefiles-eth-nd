@@ -183,7 +183,25 @@ export default function AdminPage() {
                             try {
                                 const res = await fetch(`/api/admin/cases/${encodeURIComponent(selectedCase.id)}/distribute`, { method: 'POST' });
                                 const json = await res.json();
-                                setMessage(res.ok ? `Distributed: ${json.distributed}` : (json.error || 'Distribution failed'));
+
+                                if (res.ok) {
+                                    if (json.distributed === 0) {
+                                        if (json.message?.includes('No verdicts')) {
+                                            setMessage('No players submitted verdicts yet. Case progress has been reset.');
+                                        } else if (json.message?.includes('No winners')) {
+                                            setMessage('No players guessed correctly. Case progress has been reset.');
+                                        } else if (json.message?.includes('No solution')) {
+                                            setMessage('No solution set for this case. Case progress has been reset.');
+                                        } else {
+                                            setMessage('No rewards distributed. Case progress has been reset.');
+                                        }
+                                    } else {
+                                        setMessage(`Successfully distributed rewards to ${json.distributed} winner(s). Case progress has been reset.`);
+                                    }
+                                } else {
+                                    setMessage(json.error || 'Distribution failed');
+                                }
+
                                 // Refetch distribution panel
                                 await distQuery.refetch();
                                 // Invalidate user-facing caches so pages refresh state
@@ -219,7 +237,10 @@ export default function AdminPage() {
                     ) : distQuery.data?.distribution ? (
                         <div className="border border-white/10 bg-white/5 p-3">
                             {distQuery.data.payouts.length === 0 ? (
-                                <div className="text-white/70 text-xs">No winners last time.</div>
+                                <div className="text-white/70 text-xs">
+                                    <div className="mb-1">No winners in the last distribution.</div>
+                                    <div className="text-white/50 text-xs">This could mean no players submitted verdicts, or no one guessed correctly.</div>
+                                </div>
                             ) : (
                                 <ul className="space-y-2">
                                     {distQuery.data.payouts.map((p: any, i: number) => (
