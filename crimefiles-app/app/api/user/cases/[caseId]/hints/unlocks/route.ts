@@ -3,18 +3,11 @@ import { listHintUnlocks, pruneInvalidCaseRefs } from "@/lib/db";
 
 export const runtime = "nodejs";
 
-export async function GET(req: NextRequest, ctx: { params: Promise<{ caseId: string }> } | { params: { caseId: string } }) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ caseId: string }> }) {
     try {
+        const { caseId: rawCaseId } = await params;
+        const caseId = decodeURIComponent(rawCaseId || "");
         const url = new URL(req.url);
-        let caseId = "";
-        if (ctx && "params" in ctx) {
-            const p = await (ctx as any).params;
-            caseId = decodeURIComponent(p?.caseId || "");
-        }
-        if (!caseId) {
-            const parts = url.pathname.split("/");
-            caseId = decodeURIComponent(parts[4] || "");
-        }
         const userAddress = String(url.searchParams.get("userAddress") || "").toLowerCase();
 
         if (!caseId || !userAddress) {

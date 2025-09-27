@@ -3,18 +3,10 @@ import { recordHintUnlock } from "@/lib/db";
 
 export const runtime = "nodejs";
 
-export async function POST(req: NextRequest, ctx: { params: Promise<{ caseId: string }> } | { params: { caseId: string } }) {
+export async function POST(req: NextRequest, { params }: { params: Promise<{ caseId: string }> }) {
     try {
-        const url = new URL(req.url);
-        let caseId = "";
-        if (ctx && "params" in ctx) {
-            const p = await (ctx as any).params;
-            caseId = decodeURIComponent(p?.caseId || "");
-        }
-        if (!caseId) {
-            const parts = url.pathname.split("/");
-            caseId = decodeURIComponent(parts[4] || "");
-        }
+        const { caseId: rawCaseId } = await params;
+        const caseId = decodeURIComponent(rawCaseId || "");
         const { userAddress, hintIndex, txHash, facilitator } = await req.json();
         const ua = String(userAddress || "").toLowerCase();
         const idx = Number(hintIndex);

@@ -20,6 +20,7 @@ export default function AdminPage() {
     const [selectedCase, setSelectedCase] = useState<Case | null>(null);
     const [showCreateForm, setShowCreateForm] = useState(false);
     const [newCase, setNewCase] = useState({ title: "", excerpt: "", story: "" });
+    const [isDistributing, setIsDistributing] = useState(false);
 
     // TanStack Query hooks
     const { data: cases = [], isLoading, error } = useCases();
@@ -180,6 +181,7 @@ export default function AdminPage() {
                     <button
                         onClick={async () => {
                             if (!selectedCase?.id) return;
+                            setIsDistributing(true);
                             try {
                                 const res = await fetch(`/api/admin/cases/${encodeURIComponent(selectedCase.id)}/distribute`, { method: 'POST' });
                                 const json = await res.json();
@@ -212,12 +214,21 @@ export default function AdminPage() {
                                 ]);
                             } catch {
                                 setMessage('Distribution failed');
+                            } finally {
+                                setIsDistributing(false);
                             }
                         }}
-                        disabled={!selectedCase}
+                        disabled={!selectedCase || isDistributing}
                         className="border border-white/40 px-4 py-2 hover:bg-white/10 disabled:opacity-50"
                     >
-                        Reveal & Distribute
+                        {isDistributing ? (
+                            <div className="flex items-center gap-2">
+                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                                Distributing...
+                            </div>
+                        ) : (
+                            'Reveal & Distribute'
+                        )}
                     </button>
                 </div>
 

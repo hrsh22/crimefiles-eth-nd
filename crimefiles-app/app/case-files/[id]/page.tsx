@@ -10,7 +10,7 @@ import { Volume2, Loader2, Square } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 export default function CaseDetailPage({ params }: { params: Promise<{ id: string }> }) {
-    const { id } = React.use(params as Promise<{ id: string }>);
+    const { id } = React.use(params);
     const { isConnected, address } = useAccount();
     const { data: walletClient } = useWalletClient();
 
