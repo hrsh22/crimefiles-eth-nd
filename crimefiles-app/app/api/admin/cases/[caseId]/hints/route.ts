@@ -10,7 +10,7 @@ export async function GET(req: NextRequest) {
         const caseId = decodeURIComponent(parts[4] || "");
         if (!caseId) return NextResponse.json({ error: "Case ID required" }, { status: 400 });
 
-        const hints = getHintsByCaseId(caseId);
+        const hints = await getHintsByCaseId(caseId);
         return NextResponse.json({ hints });
     } catch (error) {
         console.error("Failed to fetch hints:", error);
@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
 
         if (!caseId || !hintText) return NextResponse.json({ error: "Case ID and hintText are required" }, { status: 400 });
 
-        const hint = createHint({ caseId, hintText });
+        const hint = await createHint({ caseId, hintText });
         return NextResponse.json({ hint }, { status: 201 });
     } catch (error) {
         console.error("Failed to create hint:", error);

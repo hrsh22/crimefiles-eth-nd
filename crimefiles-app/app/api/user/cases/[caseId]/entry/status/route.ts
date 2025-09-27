@@ -14,8 +14,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ case
             return NextResponse.json({ error: "caseId and userAddress required" }, { status: 400 });
         }
 
-        try { pruneInvalidCaseRefs(); } catch { }
-        const entry = getEntry(caseId, userAddress);
+        try { await pruneInvalidCaseRefs(); } catch { }
+        const entry = await getEntry(caseId, userAddress);
         const res = NextResponse.json({ hasEntry: !!entry, entry });
         res.headers.set('Cache-Control', 'no-store');
         return res;

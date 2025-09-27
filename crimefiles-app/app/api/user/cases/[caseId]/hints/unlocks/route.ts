@@ -14,8 +14,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ case
             return NextResponse.json({ error: "caseId and userAddress required" }, { status: 400 });
         }
 
-        try { pruneInvalidCaseRefs(); } catch { }
-        const unlocks = listHintUnlocks(caseId, userAddress);
+        try { await pruneInvalidCaseRefs(); } catch { }
+        const unlocks = await listHintUnlocks(caseId, userAddress);
         const unlockedIndices = unlocks.map(u => u.hint_index);
         const res = NextResponse.json({ unlockedIndices });
         res.headers.set('Cache-Control', 'no-store');

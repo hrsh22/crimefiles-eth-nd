@@ -16,7 +16,7 @@ export async function migrateCaseData(): Promise<void> {
             console.log(`📁 Migrating case: ${caseFile.title}`);
 
             // Create the case
-            const dbCase = createCase({
+            const dbCase = await createCase({
                 title: caseFile.title,
                 excerpt: caseFile.excerpt,
                 story: caseFile.story
@@ -24,7 +24,7 @@ export async function migrateCaseData(): Promise<void> {
 
             // Create hints for the case
             for (const hintText of caseFile.hints) {
-                createHint({
+                await createHint({
                     caseId: dbCase.id,
                     hintText
                 });
@@ -32,7 +32,7 @@ export async function migrateCaseData(): Promise<void> {
 
             // Create suspects for the case
             for (const suspect of caseFile.suspects) {
-                createSuspect({
+                await createSuspect({
                     caseId: dbCase.id,
                     name: suspect.name,
                     description: suspect.description,
@@ -51,12 +51,12 @@ export async function migrateCaseData(): Promise<void> {
             if (caseFile.timeline) {
                 console.log('📅 Creating timeline...');
 
-                const timeline = createTimeline(dbCase.id);
+                const timeline = await createTimeline(dbCase.id);
 
                 // Create timeline ticks
                 for (let i = 0; i < caseFile.timeline.ticks.length; i++) {
                     const tick = caseFile.timeline.ticks[i];
-                    createTimelineTick({
+                    await createTimelineTick({
                         timelineId: timeline.id,
                         label: tick.label,
                         position: i
@@ -66,7 +66,7 @@ export async function migrateCaseData(): Promise<void> {
                 // Create timeline lanes
                 for (let i = 0; i < caseFile.timeline.lanes.length; i++) {
                     const lane = caseFile.timeline.lanes[i];
-                    createTimelineLane({
+                    await createTimelineLane({
                         timelineId: timeline.id,
                         title: lane.title,
                         kind: lane.kind,
@@ -76,7 +76,7 @@ export async function migrateCaseData(): Promise<void> {
 
                 // Create timeline events
                 for (const event of caseFile.timeline.events) {
-                    createTimelineEvent({
+                    await createTimelineEvent({
                         timelineId: timeline.id,
                         laneId: event.laneId,
                         title: event.title,

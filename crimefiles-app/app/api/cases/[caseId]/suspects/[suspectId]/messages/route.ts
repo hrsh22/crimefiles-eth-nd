@@ -29,11 +29,11 @@ export async function POST(req: NextRequest) {
         }
 
         // Get or create thread and store user message
-        const thread = getOrCreateOpenThread({ userAddress, caseId, suspectId });
-        insertMessage({ threadId: thread.id, role: "user", content: userMessage });
+        const thread = await getOrCreateOpenThread({ userAddress, caseId, suspectId });
+        await insertMessage({ threadId: thread.id, role: "user", content: userMessage });
 
         // Build context and system prompt
-        const prior = listMessages(thread.id);
+        const prior = await listMessages(thread.id);
         const caseFile = await getCaseFromDb(caseId);
         const suspect = caseFile?.suspects.find(s => s.id === suspectId);
 
@@ -83,7 +83,7 @@ export async function POST(req: NextRequest) {
         console.log(`✅ LLM Response: ${text.length} chars in ${duration}ms`);
 
         // Store assistant response and return
-        insertMessage({ threadId: thread.id, role: "assistant", content: text });
+        await insertMessage({ threadId: thread.id, role: "assistant", content: text });
         return NextResponse.json({ response: text, threadId: thread.id });
     } catch (e) {
         const duration = Date.now() - startTime;

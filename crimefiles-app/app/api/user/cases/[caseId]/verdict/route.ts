@@ -14,7 +14,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ case
             return NextResponse.json({ error: "caseId and userAddress required" }, { status: 400 });
         }
 
-        const verdict = getVerdict(caseId, userAddress);
+        const verdict = await getVerdict(caseId, userAddress);
         const res = NextResponse.json({ verdict });
         res.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
         res.headers.set('Pragma', 'no-cache');
@@ -38,7 +38,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cas
             return NextResponse.json({ error: "caseId, userAddress and suspectId required" }, { status: 400 });
         }
 
-        const verdict = recordVerdict({ caseId, userAddress: ua, suspectId: String(suspectId), amount: amount ? String(amount) : undefined, txHash: txHash || undefined, facilitator: facilitator || undefined });
+        const verdict = await recordVerdict({ caseId, userAddress: ua, suspectId: String(suspectId), amount: amount ? String(amount) : undefined, txHash: txHash || undefined, facilitator: facilitator || undefined });
         const res = NextResponse.json({ verdict });
         res.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
         res.headers.set('Pragma', 'no-cache');

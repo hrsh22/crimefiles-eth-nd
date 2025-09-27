@@ -16,7 +16,7 @@ export async function GET(req: NextRequest) {
             return NextResponse.json({ error: "Wallet connection required" }, { status: 401 });
         }
 
-        const { thread, messages } = getOpenThreadWithMessages({ userAddress, caseId, suspectId });
+        const { thread, messages } = await getOpenThreadWithMessages({ userAddress, caseId, suspectId });
 
         if (!thread) {
             console.log(`❌ No open thread found for user:${userAddress} case:${caseId} suspect:${suspectId}`);

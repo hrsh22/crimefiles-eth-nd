@@ -10,7 +10,7 @@ export async function GET(req: NextRequest) {
         const caseId = decodeURIComponent(parts[4] || "");
         if (!caseId) return NextResponse.json({ error: "Case ID required" }, { status: 400 });
 
-        const suspects = getSuspectsByCaseId(caseId);
+        const suspects = await getSuspectsByCaseId(caseId);
         return NextResponse.json({ suspects });
     } catch (error) {
         console.error("Failed to fetch suspects:", error);
@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
         const required = ["name", "age", "occupation", "image", "gender"];
         for (const key of required) if (!body[key]) return NextResponse.json({ error: `${key} is required` }, { status: 400 });
 
-        const suspect = createSuspect({
+        const suspect = await createSuspect({
             caseId,
             name: String(body.name),
             description: body.description ? String(body.description) : undefined,
