@@ -43,7 +43,10 @@ class RemoteDbAdapter {
     private chain: Promise<void> = Promise.resolve();
     constructor(client: any) { this.client = client; }
     exec(sql: string): void {
-        this.chain = this.chain.then(() => this.client.execute(sql).then(() => { }));
+        const statements = splitStatements(sql);
+        for (const stmt of statements) {
+            this.chain = this.chain.then(() => this.client.execute(stmt).then(() => { }));
+        }
     }
     prepare(sql: string) {
         return {
@@ -64,6 +67,13 @@ class RemoteDbAdapter {
         };
     }
     async flush(): Promise<void> { await this.chain; }
+}
+
+function splitStatements(sql: string): string[] {
+    return sql
+        .split(';')
+        .map(s => s.trim())
+        .filter(s => s.length > 0);
 }
 
 async function getClient() {

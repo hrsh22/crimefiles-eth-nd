@@ -8,7 +8,7 @@ import { v4 as uuidv4 } from "uuid";
 const LIBSQL_URL = process.env.LIBSQL_URL;
 const LIBSQL_AUTH_TOKEN = process.env.LIBSQL_AUTH_TOKEN;
 const USE_REMOTE = !!LIBSQL_URL;
-
+console.log("USE REMOTE DB:", USE_REMOTE);
 // Local file path for dev fallback
 const DB_PATH = process.env.CRIMEFILES_DB_PATH
     ? path.resolve(process.env.CRIMEFILES_DB_PATH)
