@@ -1,4 +1,4 @@
-import type { LlmMessage } from "../../providers/llm";
+import type { LlmMessage } from "../llm";
 
 type CreateArgs = { baseUrl: string; apiKey: string };
 
