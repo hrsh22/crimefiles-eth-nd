@@ -4,8 +4,10 @@ import fs from "fs";
 import { v4 as uuidv4 } from "uuid";
 
 // Simple synchronous SQLite wrapper for server-side usage only.
-// DB file lives under .data to avoid accidental commits
-const DB_PATH = process.env.CRIMEFILES_DB_PATH || ".data/crimefiles.db";
+// Use absolute path to avoid cwd differences across runtimes
+const DB_PATH = process.env.CRIMEFILES_DB_PATH
+    ? path.resolve(process.env.CRIMEFILES_DB_PATH)
+    : path.resolve(process.cwd(), ".data", "crimefiles.db");
 
 let db: Database.Database | null = null;
 
@@ -19,6 +21,8 @@ function ensureDatabase(): Database.Database {
 
     db = new Database(DB_PATH);
     db.pragma("journal_mode = WAL");
+    db.pragma("synchronous = NORMAL");
+    db.pragma("busy_timeout = 5000");
     db.pragma("foreign_keys = ON");
 
     // Schema is managed via migrations (see /migrations). No implicit schema creation here.
@@ -49,6 +53,7 @@ export type DbCase = {
     title: string;
     excerpt: string;
     story: string;
+    solution_suspect_id?: string | null;
     created_at: string;
     updated_at: string;
 };
@@ -146,6 +151,9 @@ export type DbVerdict = {
     submitted_at: string;
     created_at: string;
 };
+
+export type DbDistribution = { id: string; case_id: string; created_at: string };
+export type DbDistributionPayout = { id: string; distribution_id: string; user_address: string; amount_usd: string | null; tx_hash: string | null; created_at: string };
 
 function nowIso(): string {
     return new Date().toISOString();
@@ -266,6 +274,13 @@ export function updateCase(id: string, params: { title?: string; excerpt?: strin
     ).run(...updateValues);
 
     return getCaseById(id);
+}
+
+export function setCaseSolution(caseId: string, suspectId: string | null): DbCase | null {
+    const dbi = ensureDatabase();
+    const ts = nowIso();
+    dbi.prepare(`UPDATE cases SET solution_suspect_id = ?, updated_at = ? WHERE id = ?`).run(suspectId, ts, caseId);
+    return getCaseById(caseId);
 }
 
 export function deleteCase(id: string): boolean {
@@ -554,4 +569,56 @@ export function recordVerdict(params: { caseId: string; userAddress: string; sus
     return dbi.prepare(`SELECT * FROM verdicts WHERE id = ?`).get(id) as DbVerdict;
 }
 
+export function listVerdictsByCase(caseId: string): DbVerdict[] {
+    const dbi = ensureDatabase();
+    return dbi.prepare(`SELECT * FROM verdicts WHERE case_id = ?`).all(caseId) as DbVerdict[];
+}
 
+export function resetCaseProgress(caseId: string) {
+    const dbi = ensureDatabase();
+    // Clear chat threads for this case (messages cascade via FK)
+    dbi.prepare(`DELETE FROM threads WHERE case_id = ?`).run(caseId);
+    dbi.prepare(`DELETE FROM entries WHERE case_id = ?`).run(caseId);
+    dbi.prepare(`DELETE FROM hint_unlocks WHERE case_id = ?`).run(caseId);
+    dbi.prepare(`DELETE FROM verdicts WHERE case_id = ?`).run(caseId);
+}
+
+export function createDistribution(caseId: string): DbDistribution {
+    const dbi = ensureDatabase();
+    const id = uuid();
+    const ts = nowIso();
+    dbi.prepare(`INSERT INTO distributions (id, case_id, created_at) VALUES (?, ?, ?)`).run(id, caseId, ts);
+    return { id, case_id: caseId, created_at: ts };
+}
+
+export function addDistributionPayout(params: { distributionId: string; userAddress: string; amountUsd?: string; txHash?: string; }): DbDistributionPayout {
+    const dbi = ensureDatabase();
+    const id = uuid();
+    const ts = nowIso();
+    dbi.prepare(`INSERT INTO distribution_payouts (id, distribution_id, user_address, amount_usd, tx_hash, created_at) VALUES (?, ?, ?, ?, ?, ?)`)
+        .run(id, params.distributionId, params.userAddress, params.amountUsd || null, params.txHash || null, ts);
+    return { id, distribution_id: params.distributionId, user_address: params.userAddress, amount_usd: params.amountUsd || null, tx_hash: params.txHash || null, created_at: ts };
+}
+
+export function getLatestDistribution(caseId: string): { distribution: DbDistribution | null; payouts: DbDistributionPayout[] } {
+    const dbi = ensureDatabase();
+    const dists = dbi.prepare(`SELECT * FROM distributions WHERE case_id = ? ORDER BY created_at DESC`).all(caseId) as DbDistribution[];
+    if (!dists || dists.length === 0) return { distribution: null, payouts: [] };
+    // Prefer the most recent distribution that has payouts; else fall back to most recent
+    for (const d of dists) {
+        const p = dbi.prepare(`SELECT * FROM distribution_payouts WHERE distribution_id = ? ORDER BY created_at ASC`).all(d.id) as DbDistributionPayout[];
+        if (p.length > 0) return { distribution: d, payouts: p };
+    }
+    const latest = dists[0];
+    const payouts = dbi.prepare(`SELECT * FROM distribution_payouts WHERE distribution_id = ? ORDER BY created_at ASC`).all(latest.id) as DbDistributionPayout[];
+    return { distribution: latest, payouts };
+}
+
+// Maintenance utility: prune rows with invalid case_id values created by earlier route bugs
+export function pruneInvalidCaseRefs(): void {
+    const dbi = ensureDatabase();
+    dbi.prepare(`DELETE FROM entries WHERE case_id NOT IN (SELECT id FROM cases)`).run();
+    dbi.prepare(`DELETE FROM hint_unlocks WHERE case_id NOT IN (SELECT id FROM cases)`).run();
+    dbi.prepare(`DELETE FROM verdicts WHERE case_id NOT IN (SELECT id FROM cases)`).run();
+    dbi.prepare(`DELETE FROM threads WHERE case_id NOT IN (SELECT id FROM cases)`).run();
+}

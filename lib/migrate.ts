@@ -55,6 +55,7 @@ function getAppliedNames(db: Database.Database): string[] {
 }
 
 async function migrateUp() {
+    fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
     const db = new Database(DB_PATH);
     try {
         ensureMigrationsTable(db);

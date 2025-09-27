@@ -7,7 +7,18 @@ import { QueryClientProvider, QueryClient } from "@tanstack/react-query";
 import { http } from "wagmi";
 import { polygonAmoy, polygon } from "wagmi/chains";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      // Always refetch on mount/focus after navigations to avoid stale UI after DB resets
+      refetchOnMount: "always",
+      refetchOnWindowFocus: true,
+      refetchOnReconnect: true,
+      retry: 1,
+      staleTime: 0,
+    },
+  },
+});
 
 const chainName = process.env.NEXT_PUBLIC_WAGMI_CHAIN?.toLowerCase();
 const selectedChain = chainName === "mainnet" ? polygon : polygonAmoy;

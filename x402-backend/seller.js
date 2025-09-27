@@ -2,6 +2,9 @@ import 'dotenv/config';
 import express from "express";
 import cors from "cors";
 import { paymentMiddleware } from "x402-express";
+import { createWalletClient, http, parseUnits } from 'viem';
+import { privateKeyToAccount } from 'viem/accounts';
+import { polygonAmoy } from 'viem/chains';
 // import { facilitator } from "@coinbase/x402"; // For mainnet
 
 // Global process guards
@@ -43,12 +46,6 @@ app.use(paymentMiddleware(
             price: process.env.VERDICT_PRICE_USD || "$0.02",
             network: "polygon-amoy",
             config: { description: "Submit a verdict" }
-        },
-        // Keep demo route if needed
-        "GET /weather": {
-            price: "$0.001",
-            network: "polygon-amoy",
-            config: { description: "Get current weather data for any location" }
         }
     },
     {
@@ -87,6 +84,42 @@ app.get("/weather", (req, res) => {
 
 // Health endpoint
 app.get('/health', (req, res) => res.send({ ok: true }));
+
+// Admin payout: transfer USDC from seller to winner
+app.post('/admin/distribute', async (req, res) => {
+    try {
+        const { userAddress, share } = req.body || {};
+        if (!userAddress || typeof share !== 'number') return res.status(400).json({ ok: false, error: 'userAddress and share required' });
+
+        const pk = process.env.SELLER_PRIVATE_KEY;
+        if (!pk) return res.status(500).json({ ok: false, error: 'SELLER_PRIVATE_KEY missing' });
+
+        const account = privateKeyToAccount((pk.startsWith('0x') ? pk : `0x${pk}`));
+        const client = createWalletClient({ account, chain: polygonAmoy, transport: http() });
+
+        // Demo USDC on Amoy (address subject to change). Expect env var for safety.
+        const usdc = process.env.AMOY_USDC_ADDRESS || '0x41E94Eb019C0762f9Bfcf9Fb1E58725BfB0e7582';
+        const decimals = 6;
+        const verdictPrice = parseFloat(process.env.VERDICT_PRICE_USD?.replace('$', '') || '0.02');
+        const amount = Math.max(verdictPrice * share, 0);
+        const value = parseUnits(amount.toFixed(decimals), decimals);
+
+        // ERC20 transfer
+        const txHash = await client.writeContract({
+            address: usdc,
+            abi: [
+                { "type": "function", "name": "transfer", "stateMutability": "nonpayable", "inputs": [{ "name": "to", "type": "address" }, { "name": "value", "type": "uint256" }], "outputs": [{ "name": "", "type": "bool" }] }
+            ],
+            functionName: 'transfer',
+            args: [userAddress, value]
+        });
+
+        return res.json({ ok: true, txHash });
+    } catch (e) {
+        console.error('[ADMIN_DISTRIBUTE_ERROR]', e);
+        return res.status(500).json({ ok: false, error: e instanceof Error ? e.message : 'Internal error' });
+    }
+});
 
 // Error handler (last)
 // eslint-disable-next-line @typescript-eslint/no-unused-vars

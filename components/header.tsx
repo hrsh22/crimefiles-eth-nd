@@ -19,6 +19,7 @@ const Header = () => {
         </Link>
         <nav className="flex items-center gap-6">
           <a href="https://github.com/hrsh22/crimefiles" target="_blank" className="text-sm font-funnel-display text-white/80 hover:text-white transition-colors">GitHub</a>
+          <Link href="/admin" className="text-sm font-funnel-display text-white/80 hover:text-white transition-colors">Admin</Link>
         </nav>
       </div>
     </div >

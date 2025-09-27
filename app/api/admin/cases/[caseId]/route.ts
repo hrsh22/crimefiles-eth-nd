@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { updateCase, deleteCase } from "@/lib/db";
+import { updateCase, deleteCase, setCaseSolution } from "@/lib/db";
 import { getCaseFromDb } from "@/lib/case-helpers";
 
 export const runtime = "nodejs";
@@ -24,7 +24,13 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ case
     try {
         const { caseId } = await params;
         const body = await req.json();
-        const { title, excerpt, story } = body;
+        const { title, excerpt, story, solution_suspect_id } = body;
+
+        if (solution_suspect_id !== undefined) {
+            const updated = setCaseSolution(caseId, solution_suspect_id || null);
+            if (!updated) return NextResponse.json({ error: "Case not found" }, { status: 404 });
+            return NextResponse.json({ case: updated });
+        }
 
         const updatedCase = updateCase(caseId, { title, excerpt, story });
 

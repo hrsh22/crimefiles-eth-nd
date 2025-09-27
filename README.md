@@ -140,3 +140,6 @@ node seller.js
 - `npm run build`: Build for production
 - `npm run start`: Start production server
 - `npm run lint`: Run ESLint
+ - `npm run db:reset`: Reset DB and re-run migrations
+
+After running `npm run db:reset`, the app will refetch queries on mount/focus. If a page still shows old data, switch away and back or refresh once.

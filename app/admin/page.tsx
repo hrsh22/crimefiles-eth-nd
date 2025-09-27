@@ -1,5 +1,7 @@
 "use client";
 import React, { useState } from "react";
+import Link from "next/link";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
     useCases,
     useCreateCase,
@@ -23,6 +25,7 @@ export default function AdminPage() {
     const { data: cases = [], isLoading, error } = useCases();
     const createCaseMutation = useCreateCase();
     const deleteCaseMutation = useDeleteCase();
+    const queryClient = useQueryClient();
 
     const handleCreateCase = async () => {
         if (!newCase.title || !newCase.excerpt || !newCase.story) {
@@ -141,10 +144,26 @@ export default function AdminPage() {
         </div>
     );
 
+    const distQuery = useQuery({
+        queryKey: ['latestDistribution', selectedCase?.id],
+        enabled: !!selectedCase?.id,
+        queryFn: async () => {
+            const res = await fetch(`/api/admin/cases/${encodeURIComponent(selectedCase!.id)}/distribute/latest`);
+            if (!res.ok) return { distribution: null, payouts: [] as Array<{ user_address: string; amount_usd?: string | null; tx_hash?: string | null }> };
+            return res.json() as Promise<{ distribution: any, payouts: Array<{ user_address: string; amount_usd?: string | null; tx_hash?: string | null }> }>;
+        }
+    });
+
     const renderRevealTab = () => (
         <div className="max-w-2xl mx-auto">
             <h2 className="text-2xl font-funnel-display mb-4">Reveal & Distribute</h2>
             <p className="text-white/70 mb-4">Enter the case CID to reveal the answer and distribute the pool to winners.</p>
+            <div className="mb-4 text-xs text-white/80 font-funnel-display border border-white/10 bg-white/5 px-3 py-2">
+                For demo purposes: This will reveal the solution, distribute rewards, and reset player progress for the case (entries, hints, verdicts, chats).
+            </div>
+            <div className="mb-4">
+                <Link href="/" className="border border-white/30 px-3 py-2 hover:bg-white/10 font-funnel-display inline-block">← Back to App</Link>
+            </div>
 
             <div className="border border-white/10 p-6 bg-white/5">
                 <div className="flex gap-2 items-center mb-4">
@@ -159,6 +178,24 @@ export default function AdminPage() {
                         {cases.map(c => <option key={c.id} value={c.id} />)}
                     </datalist>
                     <button
+                        onClick={async () => {
+                            if (!selectedCase?.id) return;
+                            try {
+                                const res = await fetch(`/api/admin/cases/${encodeURIComponent(selectedCase.id)}/distribute`, { method: 'POST' });
+                                const json = await res.json();
+                                setMessage(res.ok ? `Distributed: ${json.distributed}` : (json.error || 'Distribution failed'));
+                                // Refetch distribution panel
+                                await distQuery.refetch();
+                                // Invalidate user-facing caches so pages refresh state
+                                await Promise.all([
+                                    queryClient.removeQueries({ queryKey: ['entry'], exact: false }),
+                                    queryClient.removeQueries({ queryKey: ['hintsUnlocks'], exact: false }),
+                                    queryClient.removeQueries({ queryKey: ['verdict'], exact: false }),
+                                ]);
+                            } catch {
+                                setMessage('Distribution failed');
+                            }
+                        }}
                         disabled={!selectedCase}
                         className="border border-white/40 px-4 py-2 hover:bg-white/10 disabled:opacity-50"
                     >
@@ -172,6 +209,33 @@ export default function AdminPage() {
                         <p><strong>Suspects:</strong> {selectedCase.suspects.map(s => s.name).join(", ")}</p>
                     </div>
                 )}
+
+                <div className="mt-6">
+                    <h3 className="text-lg mb-2">Last Distribution</h3>
+                    {(!selectedCase) ? (
+                        <div className="text-white/60 text-sm">Select a case to view past distribution.</div>
+                    ) : distQuery.isLoading ? (
+                        <div className="text-white/60 text-sm">Loading…</div>
+                    ) : distQuery.data?.distribution ? (
+                        <div className="border border-white/10 bg-white/5 p-3">
+                            {distQuery.data.payouts.length === 0 ? (
+                                <div className="text-white/70 text-xs">No winners last time.</div>
+                            ) : (
+                                <ul className="space-y-2">
+                                    {distQuery.data.payouts.map((p: any, i: number) => (
+                                        <li key={i} className="text-xs font-mono text-white/80 break-all">
+                                            {p.user_address} — {p.amount_usd ?? '—'} {p.tx_hash ? (<>
+                                                · tx: <a className="underline" href={`https://amoy.polygonscan.com/tx/${p.tx_hash}`} target="_blank" rel="noreferrer">{p.tx_hash.slice(0, 10)}…</a>
+                                            </>) : null}
+                                        </li>
+                                    ))}
+                                </ul>
+                            )}
+                        </div>
+                    ) : (
+                        <div className="text-white/60 text-xs">No past distributions yet.</div>
+                    )}
+                </div>
             </div>
         </div>
     );
