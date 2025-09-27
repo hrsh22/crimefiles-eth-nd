@@ -15,7 +15,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cas
             return NextResponse.json({ error: "caseId, userAddress and hintIndex required" }, { status: 400 });
         }
 
-        const unlock = recordHintUnlock({ caseId, userAddress: ua, hintIndex: idx, txHash: txHash || undefined, facilitator: facilitator || undefined });
+        const unlock = await recordHintUnlock({ caseId, userAddress: ua, hintIndex: idx, txHash: txHash || undefined, facilitator: facilitator || undefined });
         const res = NextResponse.json({ unlock });
         res.headers.set('Cache-Control', 'no-store');
         return res;

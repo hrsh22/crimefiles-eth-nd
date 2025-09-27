@@ -64,18 +64,25 @@ export function dbCaseToCaseFile(dbCase: DbCase, dbSuspects: DbSuspect[], dbHint
 export async function getAllCasesFromDb(): Promise<CaseFile[]> {
     const { getAllCases, getSuspectsByCaseId, getHintsByCaseId, getTimelineByCaseId, getTimelineTicks, getTimelineLanes, getTimelineEvents } = await import('./db');
 
-    const dbCases = getAllCases();
+    const dbCases = await getAllCases();
 
-    return dbCases.map(dbCase => {
-        const suspects = getSuspectsByCaseId(dbCase.id);
-        const hints = getHintsByCaseId(dbCase.id);
-        const timeline = getTimelineByCaseId(dbCase.id);
-        const ticks = timeline ? getTimelineTicks(timeline.id) : [];
-        const lanes = timeline ? getTimelineLanes(timeline.id) : [];
-        const events = timeline ? getTimelineEvents(timeline.id) : [];
-
-        return dbCaseToCaseFile(dbCase, suspects, hints, timeline, ticks, lanes, events);
-    });
+    const results: CaseFile[] = [];
+    for (const dbCase of dbCases) {
+        const [suspects, hints, timeline] = await Promise.all([
+            getSuspectsByCaseId(dbCase.id),
+            getHintsByCaseId(dbCase.id),
+            getTimelineByCaseId(dbCase.id),
+        ]);
+        const [ticks, lanes, events] = timeline
+            ? await Promise.all([
+                getTimelineTicks(timeline.id),
+                getTimelineLanes(timeline.id),
+                getTimelineEvents(timeline.id),
+            ])
+            : [[], [], []];
+        results.push(dbCaseToCaseFile(dbCase, suspects, hints, timeline || undefined, ticks, lanes, events));
+    }
+    return results;
 }
 
 /**
@@ -84,15 +91,21 @@ export async function getAllCasesFromDb(): Promise<CaseFile[]> {
 export async function getCaseFromDb(id: string): Promise<CaseFile | undefined> {
     const { getCaseById, getSuspectsByCaseId, getHintsByCaseId, getTimelineByCaseId, getTimelineTicks, getTimelineLanes, getTimelineEvents } = await import('./db');
 
-    const dbCase = getCaseById(id);
+    const dbCase = await getCaseById(id);
     if (!dbCase) return undefined;
 
-    const suspects = getSuspectsByCaseId(dbCase.id);
-    const hints = getHintsByCaseId(dbCase.id);
-    const timeline = getTimelineByCaseId(dbCase.id);
-    const ticks = timeline ? getTimelineTicks(timeline.id) : [];
-    const lanes = timeline ? getTimelineLanes(timeline.id) : [];
-    const events = timeline ? getTimelineEvents(timeline.id) : [];
+    const [suspects, hints, timeline] = await Promise.all([
+        getSuspectsByCaseId(dbCase.id),
+        getHintsByCaseId(dbCase.id),
+        getTimelineByCaseId(dbCase.id),
+    ]);
+    const [ticks, lanes, events] = timeline
+        ? await Promise.all([
+            getTimelineTicks(timeline.id),
+            getTimelineLanes(timeline.id),
+            getTimelineEvents(timeline.id),
+        ])
+        : [[], [], []];
 
     return dbCaseToCaseFile(dbCase, suspects, hints, timeline, ticks, lanes, events);
 }

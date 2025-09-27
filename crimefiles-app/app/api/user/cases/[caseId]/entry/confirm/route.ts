@@ -14,7 +14,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cas
             return NextResponse.json({ error: "caseId and userAddress required" }, { status: 400 });
         }
 
-        const entry = recordEntry({ caseId, userAddress: ua, txHash: txHash || undefined, facilitator: facilitator || undefined });
+        const entry = await recordEntry({ caseId, userAddress: ua, txHash: txHash || undefined, facilitator: facilitator || undefined });
         const res = NextResponse.json({ entry });
         res.headers.set('Cache-Control', 'no-store');
         return res;

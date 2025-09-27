@@ -7,7 +7,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ case
     try {
         const { suspectId } = await params;
         const body = await req.json();
-        const updated = updateSuspect(suspectId, body);
+        const updated = await updateSuspect(suspectId, body);
         if (!updated) return NextResponse.json({ error: "Suspect not found" }, { status: 404 });
         return NextResponse.json({ suspect: updated });
     } catch (error) {
@@ -19,7 +19,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ case
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ caseId: string; suspectId: string }> }) {
     try {
         const { suspectId } = await params;
-        const ok = deleteSuspect(suspectId);
+        const ok = await deleteSuspect(suspectId);
         if (!ok) return NextResponse.json({ error: "Suspect not found" }, { status: 404 });
         return NextResponse.json({ message: "Suspect deleted" });
     } catch (error) {

@@ -10,7 +10,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ case
         const hintText = String(body.hintText || "").trim();
         if (!hintText) return NextResponse.json({ error: "hintText is required" }, { status: 400 });
 
-        const updated = updateHint(hintId, hintText);
+        const updated = await updateHint(hintId, hintText);
         if (!updated) return NextResponse.json({ error: "Hint not found" }, { status: 404 });
         return NextResponse.json({ hint: updated });
     } catch (error) {
@@ -22,7 +22,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ case
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ caseId: string; hintId: string }> }) {
     try {
         const { hintId } = await params;
-        const ok = deleteHint(hintId);
+        const ok = await deleteHint(hintId);
         if (!ok) return NextResponse.json({ error: "Hint not found" }, { status: 404 });
         return NextResponse.json({ message: "Hint deleted" });
     } catch (error) {

@@ -40,6 +40,13 @@ npm run dev
 
 Add to your `.env.local`:
 ```bash
+# Turso / libsql (server-only)
+# Use these to enable remote DB. If not set, local file DB is used.
+LIBSQL_URL=libsql://<your-db>.turso.io
+LIBSQL_AUTH_TOKEN=xxxx
+# Local fallback path (optional)
+# CRIMEFILES_DB_PATH=/absolute/path/to/crimefiles.db
+
 # Wallet Connect (required for wallet connection)
 NEXT_PUBLIC_WALLET_CONNECT_PROJECT_ID=your_wallet_connect_project_id
 

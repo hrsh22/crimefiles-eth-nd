@@ -23,7 +23,7 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
         }
 
-        const newCase = createCase({ title, excerpt, story });
+        const newCase = await createCase({ title, excerpt, story });
         return NextResponse.json({ case: newCase }, { status: 201 });
     } catch (error) {
         console.error("Failed to create case:", error);
@@ -40,7 +40,7 @@ export async function DELETE(req: NextRequest) {
             return NextResponse.json({ error: "Case ID required" }, { status: 400 });
         }
 
-        const success = deleteCase(caseId);
+        const success = await deleteCase(caseId);
         if (!success) {
             return NextResponse.json({ error: "Case not found" }, { status: 404 });
         }

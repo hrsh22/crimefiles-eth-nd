@@ -11,10 +11,13 @@
     "db:migrate": "tsx lib/migrate.ts up",
     "db:migrate:down": "tsx lib/migrate.ts down",
     "db:migrate:status": "tsx lib/migrate.ts status",
+    "db:migrate:remote": "tsx lib/migrate-remote.ts up",
+    "db:migrate:remote:status": "tsx lib/migrate-remote.ts status",
     "db:reset": "rm -rf .data && npm run db:migrate",
     "logs": "echo '💡 Start the dev server with: npm run dev' && echo '💡 Then visit the chat page and watch the logs here:' && echo '💡 You can also use: tail -f ~/.npm/_logs/*.log' || echo 'No npm logs found yet'"
   },
   "dependencies": {
+    "@libsql/client": "^0.11.0",
     "@rainbow-me/rainbowkit": "^2.2.8",
     "@tanstack/react-query": "^5.83.0",
     "better-sqlite3": "^12.4.1",

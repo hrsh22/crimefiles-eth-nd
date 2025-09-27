@@ -27,12 +27,12 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ case
         const { title, excerpt, story, solution_suspect_id } = body;
 
         if (solution_suspect_id !== undefined) {
-            const updated = setCaseSolution(caseId, solution_suspect_id || null);
+            const updated = await setCaseSolution(caseId, solution_suspect_id || null);
             if (!updated) return NextResponse.json({ error: "Case not found" }, { status: 404 });
             return NextResponse.json({ case: updated });
         }
 
-        const updatedCase = updateCase(caseId, { title, excerpt, story });
+        const updatedCase = await updateCase(caseId, { title, excerpt, story });
 
         if (!updatedCase) {
             return NextResponse.json({ error: "Case not found" }, { status: 404 });
@@ -48,7 +48,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ case
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ caseId: string }> }) {
     try {
         const { caseId } = await params;
-        const success = deleteCase(caseId);
+        const success = await deleteCase(caseId);
 
         if (!success) {
             return NextResponse.json({ error: "Case not found" }, { status: 404 });
