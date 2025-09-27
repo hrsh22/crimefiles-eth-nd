@@ -47,6 +47,24 @@ Simple documentation of why and where each partner is used.
 
 ---
 
+## 🪪 Self Protocol (Age, Sanctions, Country Gating)
+
+**Why Used:**
+- Enforces compliance gates before gameplay: age ≥ 18, global OFAC screening, and Pakistan block
+- Bot/Sybil resistance signal via verified user flow
+- Smooth UX: uses connected wallet address as `userId`; judges can “Skip to Game”
+
+**Where Used:**
+- `/components/VerifyModal.tsx` – Frontend QR flow using `SelfAppBuilder` + `SelfQRcodeWrapper` (from `@selfxyz/qrcode`); builds with `userId` = connected wallet, `userIdType` = `hex`, and `endpointType` = `https`/`staging_https`
+- `/app/api/verify/route.ts` – Backend verification via `SelfBackendVerifier` (from `@selfxyz/core`); sets a short‑lived `cf_verified` cookie on success
+
+**Config & Disclosures:**
+- Env: `NEXT_PUBLIC_SELF_VERIFY_SERVICE`, `NEXT_PUBLIC_SELF_APP_NAME`, `NEXT_PUBLIC_SELF_SCOPE`
+- Disclosures (must match FE/BE): `minimumAge: 18`, `excludedCountries: [PAKISTAN]`, `ofac: true`
+- UX: Home CTA shows “Connect Wallet” until connected, then “Inspect the Files” opens verification modal. Modal includes a "Skip to Game" link for demo/judges.
+
+---
+
 ## 🔮 Future Partners
 
 **IPFS/Filecoin** - For decentralized file storage
@@ -89,6 +107,12 @@ Simple documentation of why and where each partner is used.
   - UI wiring
     - `app/case-files/[id]/page.tsx` – entry modal paywall, unlock next hint, accuse (verdict); TanStack Query for hydration
     - `app/admin/page.tsx` – reveal & distribute, last distribution panel, back-to-app link
+
+  - Timelocked Reveal (Blocklock)
+    - Contracts added under `contracts/` to enable 7‑day case timelocks and automatic killer reveal
+      - `contracts/BlocklockReceiver.sol` – receives decryption key post‑timelock to reveal outcome
+      - `contracts/contracts.ts` – addresses/ABI for client wiring
+    - Status: not integrated in the live demo to show complete flow in the demo, included for architecture completeness but will integrated in future before the product launch.
 
 **Networks & Caching:**
 - Chain: Polygon Amoy (testnet) via x402 facilitator (`https://x402.polygon.technology` by default)
