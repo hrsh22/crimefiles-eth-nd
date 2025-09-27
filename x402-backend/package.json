@@ -4,8 +4,8 @@
   "type": "module",
   "main": "index.js",
   "scripts": {
-    "start": "node seller.js",
-    "dev": "nodemon --signal SIGTERM --watch seller.js seller.js",
+    "start": "node index.js",
+    "dev": "nodemon --signal SIGTERM --watch index.js index.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
