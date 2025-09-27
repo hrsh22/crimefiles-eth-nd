@@ -1,5 +1,16 @@
-import Link from "next/link";
+"use client"
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import VerifyModal from "../components/VerifyModal";
+import { useAccount } from "wagmi";
+import { useConnectModal } from "@rainbow-me/rainbowkit";
+
 export default function Home() {
+  const [openVerify, setOpenVerify] = useState(false)
+  const router = useRouter()
+  const { isConnected } = useAccount()
+  const { openConnectModal } = useConnectModal()
+
   return (
     <main className="relative text-zinc-100">
       <section className="relative h-[calc(100vh-4rem)] overflow-hidden">
@@ -21,13 +32,20 @@ export default function Home() {
               Step into the role of a lead detective. Inspect the files, interrogate suspects, and uncover the truth.
             </p>
             <div className="mt-10 flex items-center justify-center">
-              <Link href="/case-files" className="border border-white/60 hover:border-white px-5 py-2 font-funnel-display">
-                Inspect the Files
-              </Link>
+              {!isConnected ? (
+                <button onClick={() => openConnectModal && openConnectModal()} className="border border-white/60 hover:border-white px-5 py-2 font-funnel-display">
+                  Connect Wallet
+                </button>
+              ) : (
+                <button onClick={() => setOpenVerify(true)} className="border border-white/60 hover:border-white px-5 py-2 font-funnel-display">
+                  Inspect the Files
+                </button>
+              )}
             </div>
           </div>
         </div>
       </section>
+      <VerifyModal open={openVerify} onClose={() => setOpenVerify(false)} onVerified={() => { router.push('/case-files') }} />
     </main>
   );
 }
