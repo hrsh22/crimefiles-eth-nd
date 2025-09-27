@@ -4,7 +4,6 @@ import Image from "next/image";
 import Link from "next/link";
 import Wallet from "@/app/wallet";
 import { useAccount } from 'wagmi';
-import { useQuery } from '@tanstack/react-query';
 import { useThread, useOptimisticSendMessage } from '@/lib/hooks/useChat';
 import { useCase } from '@/lib/hooks/useCases';
 import { Volume2, Loader2, Square } from "lucide-react";
@@ -164,7 +163,7 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
     };
 
     // Use TanStack Query for thread data
-    const { data: threadData, isLoading: threadLoading } = useThread(
+    const { data: threadData } = useThread(
         address || "",
         caseFile?.id || "",
         selectedSuspectId,
@@ -182,7 +181,7 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
         }
     }, [threadData]);
 
-    const hydrateMessagesForSuspect = async (suspectIdToLoad?: string) => {
+    const hydrateMessagesForSuspect = async () => {
         setChatInput("");
         setMessages([]);
         // The useThread hook will automatically refetch when selectedSuspectId changes
@@ -192,7 +191,7 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
         if (!address) return; // Wallet connection required
         setSelectedSuspectId(suspectId);
         setIsInterrogationOpen(true);
-        await hydrateMessagesForSuspect(suspectId); // Pass the suspectId directly to avoid race condition
+        await hydrateMessagesForSuspect();
     };
 
     const switchInterrogationTo = (direction: "prev" | "next") => {
@@ -203,7 +202,7 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
         const nextIdx = direction === "prev" ? (idx <= 0 ? len - 1 : idx - 1) : (idx >= len - 1 ? 0 : idx + 1);
         const nextId = caseFile.suspects[nextIdx].id;
         setSelectedSuspectId(nextId);
-        hydrateMessagesForSuspect(nextId); // Pass the nextId directly to avoid race condition
+        hydrateMessagesForSuspect();
     };
 
     const closeInterrogation = () => {
@@ -218,7 +217,7 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
         if (!trimmed || !selectedSuspectId || isSending || !address || !caseFile) return;
 
         console.log(`💬 Sending message to suspect: ${selectedSuspectId}`);
-        const userMsg = { sender: "you" as const, text: trimmed };
+        // const userMsg = { sender: "you" as const, text: trimmed };
         setChatInput("");
 
         try {

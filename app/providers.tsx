@@ -5,17 +5,20 @@ import { getDefaultConfig, RainbowKitProvider } from "@rainbow-me/rainbowkit";
 import { WagmiProvider } from "wagmi";
 import { QueryClientProvider, QueryClient } from "@tanstack/react-query";
 import { http } from "wagmi";
-import { baseSepolia } from "wagmi/chains";
+import { polygonAmoy, polygon } from "wagmi/chains";
 
 const queryClient = new QueryClient();
+
+const chainName = process.env.NEXT_PUBLIC_WAGMI_CHAIN?.toLowerCase();
+const selectedChain = chainName === "mainnet" ? polygon : polygonAmoy;
 
 const config = getDefaultConfig({
   appName: "CrimeFiles",
   projectId: process.env.NEXT_PUBLIC_WALLET_CONNECT_PROJECT_ID!,
-  chains: [baseSepolia],
+  chains: [selectedChain],
   ssr: true,
   transports: {
-    [baseSepolia.id]: http(),
+    [selectedChain.id]: http(),
   },
 });
 

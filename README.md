@@ -36,7 +36,24 @@ npm run dev
 
 ### Configuration
 
-No configuration required. This build has no backend or blockchain dependencies.
+### Environment Variables
+
+Add to your `.env.local`:
+```bash
+# Wallet Connect (required for wallet connection)
+NEXT_PUBLIC_WALLET_CONNECT_PROJECT_ID=your_wallet_connect_project_id
+
+# Blockchain Network (optional)
+# Set to "mainnet" for Polygon mainnet or "testnet" for Polygon Amoy testnet (default: testnet)
+NEXT_PUBLIC_WAGMI_CHAIN=testnet
+
+# Alchemy RPC (optional - for enhanced RPC performance)
+NEXT_PUBLIC_ALCHEMY_KEY=your_alchemy_key
+
+# LLM Provider (for AI chat features)
+ASI_ONE_BASE_URL=https://api.asi1.ai
+ASI_ONE_API_KEY=your_asi_one_api_key
+```
 
 ## 🛠️ Tech Stack
 
