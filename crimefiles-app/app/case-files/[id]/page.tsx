@@ -105,7 +105,7 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
     const [payingVerdictId, setPayingVerdictId] = useState<string | null>(null);
     const [myVerdictSuspectId, setMyVerdictSuspectId] = useState<string | null>(null);
 
-    const TabNames = ["Case File", "Hints", "Suspects", "My Verdict", "Timeline"];
+    const TabNames = ["Case File", "Hints", "Suspects", "Timeline", "Your Verdict"];
 
     const selectedSuspect = useMemo(() => {
         if (!caseFile) return undefined;
@@ -606,47 +606,6 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
                         )}
 
                         {activeTab === 4 && (
-                            <div className="p-10">
-                                <h2 className="text-4xl font-funnel-display mb-4">My Verdict</h2>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    {caseFile.suspects.map((c) => (
-                                        <div key={c.id} className="overflow-hidden rounded-xl border border-white/10 bg-black/30">
-                                            <div className="p-5 flex items-center gap-4">
-                                                <Image src={c.image || "/suspect.png"} alt={c.name} width={56} height={56} className="rounded-md" />
-                                                <div className="font-funnel-display text-2xl">{c.name}</div>
-                                            </div>
-                                            <div className="border-t border-white/10 flex items-center justify-end px-4 py-3">
-                                                {myVerdictSuspectId === c.id ? (
-                                                    <span className="font-funnel-display text-emerald-300 border border-emerald-400/40 px-3 py-1">Submitted</span>
-                                                ) : (
-                                                    <button onClick={async () => {
-                                                        if (!walletClient || !address) return;
-                                                        setIsPaying(true);
-                                                        setPayingVerdictId(c.id);
-                                                        try {
-                                                            const { payVerdict } = await import('@/lib/x402');
-                                                            const result = await payVerdict(walletClient, caseFile.id, c.id);
-                                                            if (!result.ok) throw new Error('Payment failed');
-                                                            const backend = await fetch(`/api/user/cases/${encodeURIComponent(caseFile.id)}/verdict`, {
-                                                                method: 'POST',
-                                                                headers: { 'Content-Type': 'application/json' },
-                                                                body: JSON.stringify({ userAddress: address, suspectId: c.id, txHash: result.txHash, facilitator: process.env.NEXT_PUBLIC_X402_FACILITATOR_URL || 'https://x402.polygon.technology' })
-                                                            });
-                                                            if (!backend.ok) throw new Error('Failed to record verdict');
-                                                            setMyVerdictSuspectId(c.id);
-                                                        } finally { setIsPaying(false); setPayingVerdictId(null); }
-                                                    }} className="font-funnel-display border border-white/40 px-3 py-1 hover:bg-white/10 disabled:opacity-50" disabled={!hasEntry || (!!myVerdictSuspectId) || (isPaying && payingVerdictId === c.id)}>
-                                                        {isPaying && payingVerdictId === c.id ? 'Processing…' : 'Accuse'}
-                                                    </button>
-                                                )}
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
-
-                        {activeTab === 5 && (
                             <div className="p-6 md:p-10">
                                 <div className="flex items-center justify-between mb-3">
                                     <h2 className="text-3xl md:text-4xl font-funnel-display">Case Timeline</h2>
@@ -755,6 +714,47 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
                                         </div>
                                     </>
                                 )}
+                            </div>
+                        )}
+
+                        {activeTab === 5 && (
+                            <div className="p-10">
+                                <h2 className="text-4xl font-funnel-display mb-4">Your Verdict</h2>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    {caseFile.suspects.map((c) => (
+                                        <div key={c.id} className="overflow-hidden rounded-xl border border-white/10 bg-black/30">
+                                            <div className="p-5 flex items-center gap-4">
+                                                <Image src={c.image || "/suspect.png"} alt={c.name} width={56} height={56} className="rounded-md" />
+                                                <div className="font-funnel-display text-2xl">{c.name}</div>
+                                            </div>
+                                            <div className="border-t border-white/10 flex items-center justify-end px-4 py-3">
+                                                {myVerdictSuspectId === c.id ? (
+                                                    <span className="font-funnel-display text-emerald-300 border border-emerald-400/40 px-3 py-1">Submitted</span>
+                                                ) : (
+                                                    <button onClick={async () => {
+                                                        if (!walletClient || !address) return;
+                                                        setIsPaying(true);
+                                                        setPayingVerdictId(c.id);
+                                                        try {
+                                                            const { payVerdict } = await import('@/lib/x402');
+                                                            const result = await payVerdict(walletClient, caseFile.id, c.id);
+                                                            if (!result.ok) throw new Error('Payment failed');
+                                                            const backend = await fetch(`/api/user/cases/${encodeURIComponent(caseFile.id)}/verdict`, {
+                                                                method: 'POST',
+                                                                headers: { 'Content-Type': 'application/json' },
+                                                                body: JSON.stringify({ userAddress: address, suspectId: c.id, txHash: result.txHash, facilitator: process.env.NEXT_PUBLIC_X402_FACILITATOR_URL || 'https://x402.polygon.technology' })
+                                                            });
+                                                            if (!backend.ok) throw new Error('Failed to record verdict');
+                                                            setMyVerdictSuspectId(c.id);
+                                                        } finally { setIsPaying(false); setPayingVerdictId(null); }
+                                                    }} className="font-funnel-display border border-white/40 px-3 py-1 hover:bg-white/10 disabled:opacity-50" disabled={!hasEntry || (!!myVerdictSuspectId) || (isPaying && payingVerdictId === c.id)}>
+                                                        {isPaying && payingVerdictId === c.id ? 'Processing…' : 'Accuse'}
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
                             </div>
                         )}
 
