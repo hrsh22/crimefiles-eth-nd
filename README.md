@@ -101,7 +101,32 @@ Key implementation point:
 
 ## 🔗 Backend/Blockchain
 
-Removed. This repo now ships a frontend-only demo.
+Now integrated with Polygon x402 for micropayments.
+
+Frontend env:
+
+```bash
+NEXT_PUBLIC_X402_FACILITATOR_URL=https://x402.polygon.technology
+NEXT_PUBLIC_X402_SELLER_BASE_URL=http://localhost:4021
+```
+
+Seller backend (in `x402-backend/`):
+
+```bash
+SELLER_RECEIVE_ADDRESS=0xYourReceivingAddress
+FACILITATOR_URL=https://x402.polygon.technology
+ENTRY_PRICE_USD=$0.01
+HINT_PRICE_USD=$0.002
+VERDICT_PRICE_USD=$0.005
+```
+
+Run seller locally:
+
+```bash
+cd x402-backend
+npm i
+node seller.js
+```
 
 ## 🎨 UI Surface
 

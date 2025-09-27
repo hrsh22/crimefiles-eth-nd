@@ -113,6 +113,40 @@ export type DbTimelineEvent = {
     updated_at: string;
 };
 
+// ===== GAMEPLAY TABLE TYPES =====
+export type DbEntry = {
+    id: string;
+    case_id: string;
+    user_address: string;
+    tx_hash: string | null;
+    facilitator: string | null;
+    paid_at: string;
+    created_at: string;
+};
+
+export type DbHintUnlock = {
+    id: string;
+    case_id: string;
+    user_address: string;
+    hint_index: number;
+    tx_hash: string | null;
+    facilitator: string | null;
+    paid_at: string;
+    created_at: string;
+};
+
+export type DbVerdict = {
+    id: string;
+    case_id: string;
+    user_address: string;
+    suspect_id: string;
+    amount: string | null;
+    tx_hash: string | null;
+    facilitator: string | null;
+    submitted_at: string;
+    created_at: string;
+};
+
 function nowIso(): string {
     return new Date().toISOString();
 }
@@ -459,6 +493,65 @@ export function createTimelineEvent(params: {
 export function getTimelineEvents(timelineId: string): DbTimelineEvent[] {
     const dbi = ensureDatabase();
     return dbi.prepare(`SELECT * FROM timeline_events WHERE timeline_id = ? ORDER BY start_tick ASC`).all(timelineId) as DbTimelineEvent[];
+}
+
+
+// ===== GAMEPLAY OPERATIONS =====
+
+export function getEntry(caseId: string, userAddress: string): DbEntry | null {
+    const dbi = ensureDatabase();
+    return dbi.prepare(`SELECT * FROM entries WHERE case_id = ? AND user_address = ? LIMIT 1`).get(caseId, userAddress) as DbEntry | null;
+}
+
+export function recordEntry(params: { caseId: string; userAddress: string; txHash?: string; facilitator?: string }): DbEntry {
+    const dbi = ensureDatabase();
+    const id = uuid();
+    const ts = nowIso();
+    dbi.prepare(
+        `INSERT OR IGNORE INTO entries (id, case_id, user_address, tx_hash, facilitator, paid_at, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`
+    ).run(id, params.caseId, params.userAddress, params.txHash || null, params.facilitator || null, ts, ts);
+    const row = dbi.prepare(`SELECT * FROM entries WHERE case_id = ? AND user_address = ? LIMIT 1`).get(params.caseId, params.userAddress) as DbEntry;
+    return row;
+}
+
+export function listHintUnlocks(caseId: string, userAddress: string): DbHintUnlock[] {
+    const dbi = ensureDatabase();
+    return dbi.prepare(`SELECT * FROM hint_unlocks WHERE case_id = ? AND user_address = ? ORDER BY hint_index ASC`).all(caseId, userAddress) as DbHintUnlock[];
+}
+
+export function recordHintUnlock(params: { caseId: string; userAddress: string; hintIndex: number; txHash?: string; facilitator?: string }): DbHintUnlock {
+    const dbi = ensureDatabase();
+    const id = uuid();
+    const ts = nowIso();
+    dbi.prepare(
+        `INSERT OR IGNORE INTO hint_unlocks (id, case_id, user_address, hint_index, tx_hash, facilitator, paid_at, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+    ).run(id, params.caseId, params.userAddress, params.hintIndex, params.txHash || null, params.facilitator || null, ts, ts);
+    const row = dbi.prepare(`SELECT * FROM hint_unlocks WHERE case_id = ? AND user_address = ? AND hint_index = ? LIMIT 1`).get(params.caseId, params.userAddress, params.hintIndex) as DbHintUnlock;
+    return row;
+}
+
+export function getVerdict(caseId: string, userAddress: string): DbVerdict | null {
+    const dbi = ensureDatabase();
+    return dbi.prepare(`SELECT * FROM verdicts WHERE case_id = ? AND user_address = ? LIMIT 1`).get(caseId, userAddress) as DbVerdict | null;
+}
+
+export function recordVerdict(params: { caseId: string; userAddress: string; suspectId: string; amount?: string; txHash?: string; facilitator?: string }): DbVerdict {
+    const dbi = ensureDatabase();
+    const existing = getVerdict(params.caseId, params.userAddress);
+    const id = existing?.id || uuid();
+    const ts = nowIso();
+    if (existing) {
+        dbi.prepare(`UPDATE verdicts SET suspect_id = ?, amount = ?, tx_hash = COALESCE(?, tx_hash), facilitator = COALESCE(?, facilitator), submitted_at = ?, created_at = created_at WHERE id = ?`)
+            .run(params.suspectId, params.amount || null, params.txHash || null, params.facilitator || null, ts, id);
+    } else {
+        dbi.prepare(
+            `INSERT INTO verdicts (id, case_id, user_address, suspect_id, amount, tx_hash, facilitator, submitted_at, created_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        ).run(id, params.caseId, params.userAddress, params.suspectId, params.amount || null, params.txHash || null, params.facilitator || null, ts, ts);
+    }
+    return dbi.prepare(`SELECT * FROM verdicts WHERE id = ?`).get(id) as DbVerdict;
 }
 
 

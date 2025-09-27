@@ -51,3 +51,5 @@ next-env.d.ts
 .Trashes
 ehthumbs.db
 Thumbs.db
+
+/x402-backend/node_modules
