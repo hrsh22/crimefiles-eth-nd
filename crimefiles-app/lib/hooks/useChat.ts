@@ -29,6 +29,8 @@ export interface SendMessageData {
 export interface SendMessageResponse {
     response: string;
     threadId: string;
+    leads?: Array<{ title: string; tags: string[]; justification: string }>;
+    consistency?: number;
 }
 
 // Query Keys

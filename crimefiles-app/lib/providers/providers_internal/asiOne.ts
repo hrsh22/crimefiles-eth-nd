@@ -67,6 +67,17 @@ export function createAsiOneProvider({ baseUrl, apiKey }: CreateArgs) {
                 console.error(`💥 LLM Request Failed in ${duration}ms: ${error instanceof Error ? error.message : String(error)}`);
                 throw error;
             }
+        },
+        async extractClaimsFromMessages(messages: LlmMessage[]): Promise<{ mentions_time?: boolean; mentions_location?: boolean; mentions_weapon?: boolean; mentions_alibi?: boolean }> {
+            // Minimal structured extraction using local heuristic for now; replace with ASI JSON mode if available
+            const joined = messages.map(m => m.content).join("\n\n");
+            const lower = joined.toLowerCase();
+            return {
+                mentions_time: /(\b|\s)(am|pm|:\d{2}|time|tonight|yesterday)(\b|\s)/.test(lower),
+                mentions_location: /(\b|\s)(corridor|room|restaurant|kitchen|hall)(\b|\s)/.test(lower),
+                mentions_weapon: /(\b|\s)(knife|opener|weapon|letter\s+opener)(\b|\s)/.test(lower),
+                mentions_alibi: /(\b|\s)(alibi|witness|home|dinner|meeting)(\b|\s)/.test(lower),
+            };
         }
     };
 }

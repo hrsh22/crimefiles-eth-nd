@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getOrCreateOpenThread, insertMessage, listMessages } from "@/lib/db";
+import { getOrCreateOpenThread, insertMessage, listMessages, createLeadTimelineEvent } from "@/lib/db";
 import type { AgentRequest } from "@/types/api";
 import { getLlmProvider } from "@/lib/providers/llm";
 import { buildSuspectSystemPrompt } from "@/lib/prompts";
@@ -82,8 +82,49 @@ export async function POST(req: NextRequest) {
         const duration = Date.now() - startTime;
         console.log(`✅ LLM Response: ${text.length} chars in ${duration}ms`);
 
-        // Store assistant response and return
+        // Store assistant response
         await insertMessage({ threadId: thread.id, role: "assistant", content: text });
+
+        // Call ASA agents orchestrator for leads and consistency
+        try {
+            const asaUrl = process.env.ASA_AGENTS_URL || "http://127.0.0.1:7070";
+            const payload = {
+                caseFile,
+                suspectId,
+                messages,
+                assistantReply: text,
+                claims: await (async () => {
+                    try {
+                        if (typeof (llm as any).extractClaimsFromMessages === 'function') {
+                            return await (llm as any).extractClaimsFromMessages(messages as any);
+                        }
+                    } catch { }
+                    return undefined;
+                })()
+            };
+            const res = await fetch(`${asaUrl}/interrogate`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+            });
+
+            console.log("ASA Agent Raw Response:", res);
+
+            if (res.ok) {
+                const { leads, consistency } = await res.json();
+                console.log("ASA Agents Response:", { leads, consistency });
+                if (Array.isArray(leads)) {
+                    for (const lead of leads) {
+                        try {
+                            await createLeadTimelineEvent({ caseId, title: lead.title, tags: lead.tags });
+                        } catch { }
+                    }
+                }
+                return NextResponse.json({ response: text, threadId: thread.id, leads, consistency });
+            }
+        } catch (e) {
+            console.error("ASA Agent Error:", e);
+        }
         return NextResponse.json({ response: text, threadId: thread.id });
     } catch (e) {
         const duration = Date.now() - startTime;

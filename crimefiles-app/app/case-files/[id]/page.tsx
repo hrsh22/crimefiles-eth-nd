@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import Wallet from "@/app/wallet";
 import { useAccount, useWalletClient } from 'wagmi';
-import { useThread, useOptimisticSendMessage } from '@/lib/hooks/useChat';
+import { useThread, useOptimisticSendMessage, chatKeys } from '@/lib/hooks/useChat';
 import { useCase } from '@/lib/hooks/useCases';
 import { Volume2, Loader2, Square } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -27,6 +27,8 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
     const [chatInput, setChatInput] = useState<string>("");
     const [messages, setMessages] = useState<Array<{ sender: "you" | "suspect"; text: string }>>([]);
     const [isSending, setIsSending] = useState<boolean>(false);
+    const [agentLeads, setAgentLeads] = useState<Array<{ title: string; tags: string[]; justification: string }>>([]);
+    const [agentConsistency, setAgentConsistency] = useState<number | null>(null);
 
     // TTS states
     const [generatingIdx, setGeneratingIdx] = useState<number | null>(null);
@@ -266,13 +268,23 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
         setChatInput("");
         setMessages([]);
         // The useThread hook will automatically refetch when selectedSuspectId changes
+        setAgentLeads([]);
+        setAgentConsistency(null);
     };
 
     const openInterrogation = async (suspectId: string) => {
         if (!address) return; // Wallet connection required
         setSelectedSuspectId(suspectId);
+        if (caseFile) {
+            const idx = caseFile.suspects.findIndex((s: any) => s.id === suspectId);
+            if (idx >= 0) setCurrentSuspectIndex(idx);
+        }
         setIsInterrogationOpen(true);
         await hydrateMessagesForSuspect();
+        // Force-fetch thread immediately to avoid initial empty state
+        if (caseFile && address) {
+            await queryClient.refetchQueries({ queryKey: chatKeys.thread(address, caseFile.id, suspectId) });
+        }
     };
 
     const switchInterrogationTo = (direction: "prev" | "next") => {
@@ -284,6 +296,9 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
         const nextId = caseFile.suspects[nextIdx].id;
         setSelectedSuspectId(nextId);
         hydrateMessagesForSuspect();
+        if (address) {
+            queryClient.refetchQueries({ queryKey: chatKeys.thread(address, caseFile.id, nextId) });
+        }
     };
 
     const closeInterrogation = () => {
@@ -303,12 +318,14 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
 
         try {
             setIsSending(true);
-            await sendMessageMutation.mutateAsync({
+            const res = await sendMessageMutation.mutateAsync({
                 caseId: caseFile.id,
                 suspectId: selectedSuspectId,
                 data: { userMessage: trimmed, userAddress: address },
                 optimisticMessage: { role: "user" as const, content: trimmed }
             });
+            if (res?.leads) setAgentLeads(res.leads);
+            if (typeof res?.consistency === 'number') setAgentConsistency(res.consistency);
         } catch (error) {
             console.error("💥 Failed to send message:", error);
         } finally {
@@ -824,7 +841,12 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
                                         <div className="font-funnel-display text-xl">
                                             {selectedSuspect?.name ? `Interrogating ${selectedSuspect.name}` : "Interrogation"}
                                         </div>
-                                        <button onClick={closeInterrogation} aria-label="Close interrogation" className="text-white/70 hover:text-white">✕</button>
+                                        <div className="flex items-center gap-3">
+                                            {typeof agentConsistency === 'number' && (
+                                                <span className="font-funnel-display text-sm text-white/80 border border-white/20 px-2 py-0.5 rounded">Consistency {Math.round(agentConsistency * 100)}%</span>
+                                            )}
+                                            <button onClick={closeInterrogation} aria-label="Close interrogation" className="text-white/70 hover:text-white">✕</button>
+                                        </div>
                                     </div>
                                     <div className="flex-1 min-h-0 overflow-y-auto px-4 py-3 space-y-3 overscroll-contain" ref={chatScrollRef}>
                                         {messages.map((m, idx) => (
@@ -866,7 +888,22 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
                                         .typing-dot:nth-child(3) { animation-delay: .4s; }
                                     `}</style>
                                     </div>
-                                    <div className="flex items-center gap-2 px-4 py-3 border-t border-white/10 bg-black/60">
+                                    <div className="px-4 pt-3 border-t border-white/10 bg-black/60">
+                                        {agentLeads.length > 0 && (
+                                            <div className="mb-2">
+                                                <div className="text-[11px] uppercase tracking-widest text-white/60 mb-1">Agent Leads</div>
+                                                <ul className="space-y-1">
+                                                    {agentLeads.map((l, i) => (
+                                                        <li key={i} className="border border-emerald-400/30 bg-emerald-500/10 text-emerald-100 p-2 font-funnel-display">
+                                                            <div className="text-sm">{l.title}</div>
+                                                            <div className="mt-1 text-xs opacity-80">{l.justification}</div>
+                                                        </li>
+                                                    ))}
+                                                </ul>
+                                            </div>
+                                        )}
+                                    </div>
+                                    <div className="flex items-center gap-2 px-4 pb-3 bg-black/60">
                                         <input
                                             value={chatInput}
                                             onChange={(e) => setChatInput(e.target.value)}

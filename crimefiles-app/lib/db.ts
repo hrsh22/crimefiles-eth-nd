@@ -526,6 +526,42 @@ export async function getTimelineEvents(timelineId: string): Promise<DbTimelineE
 }
 
 
+// ===== LEAD PERSISTENCE HELPERS =====
+
+export async function getOrCreateSolutionLaneForCase(caseId: string): Promise<{ timeline: DbTimeline; lane: DbTimelineLane; ticks: DbTimelineTick[] }> {
+    let timeline = await getTimelineByCaseId(caseId);
+    if (!timeline) {
+        timeline = await createTimeline(caseId);
+    }
+    let lanes = await getTimelineLanes(timeline.id);
+    let lane = lanes.find(l => l.kind === 'solution');
+    if (!lane) {
+        const position = lanes.length;
+        lane = await createTimelineLane({ timelineId: timeline.id, title: 'Solution', kind: 'solution', position });
+        lanes = await getTimelineLanes(timeline.id);
+    }
+    let ticks = await getTimelineTicks(timeline.id);
+    if (!ticks || ticks.length === 0) {
+        // Ensure at least one tick exists
+        await createTimelineTick({ timelineId: timeline.id, label: 'Now', position: 0 });
+        ticks = await getTimelineTicks(timeline.id);
+    }
+    return { timeline, lane, ticks };
+}
+
+export async function createLeadTimelineEvent(params: { caseId: string; title: string; tags?: string[] }): Promise<DbTimelineEvent> {
+    const { timeline, lane, ticks } = await getOrCreateSolutionLaneForCase(params.caseId);
+    const startTick = Math.max(0, (ticks?.length || 1) - 1);
+    const uniqueTags = Array.from(new Set(['Solution', ...(params.tags || [])]));
+    return await createTimelineEvent({
+        timelineId: timeline.id,
+        laneId: lane.id,
+        title: params.title,
+        startTick,
+        tags: uniqueTags,
+    });
+}
+
 // ===== GAMEPLAY OPERATIONS =====
 
 export async function getEntry(caseId: string, userAddress: string): Promise<DbEntry | null> {

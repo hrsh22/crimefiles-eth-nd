@@ -18,6 +18,28 @@ Simple documentation of why and where each partner is used.
 
 ---
 
+## 🧠 ASA Agents (uAgents + Metta)
+
+**Why Used:**
+- Multi‑agent orchestration and rule‑based reasoning to produce Leads and a Consistency score
+- Deterministic, inspectable reasoning via Metta rules; complements ASI LLM responses
+
+
+**Where Used:**
+- `asa-agents/app/main.py` – FastAPI service (auto‑starts uAgent orchestrator)
+- `asa-agents/app/agent_orchestrator.py` – uAgents orchestrator (message schemas + handler)
+- `asa-agents/app/engine_metta.py` – Metta engine wrapper (facts + rule queries)
+- `asa-agents/app/rules/leads.metta` – Rule set for leads/consistency
+- Next.js bridge: `/app/api/cases/[caseId]/suspects/[suspectId]/messages/route.ts` (calls ASA service and persists leads in timeline)
+
+**Config & Run:**
+- Start ASA service: `cd asa-agents && python -m app`
+- Env (optional): `ASA_UAGENT_NAME`, `ASA_UAGENT_SEED`
+- Metta: `pip install hyperon` (already documented in `asa-agents/README.md`)
+- Next.js env: `ASA_AGENTS_URL` (defaults to `http://127.0.0.1:7070`), `ASI_ONE_BASE_URL`, `ASI_ONE_API_KEY`
+
+---
+
 ## 💾 SQLite Database
 
 **Why Used:**
@@ -68,7 +90,6 @@ Simple documentation of why and where each partner is used.
 ## 🔮 Future Partners
 
 **IPFS/Filecoin** - For decentralized file storage
-**Voice AI** - For text-to-speech suspect responses
 **Analytics** - For user behavior and conversation insights
 
 ---

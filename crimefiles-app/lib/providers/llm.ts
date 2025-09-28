@@ -1,7 +1,15 @@
 export type LlmMessage = { role: "system" | "user" | "assistant"; content: string };
 
+export type Claims = {
+    mentions_time?: boolean;
+    mentions_location?: boolean;
+    mentions_weapon?: boolean;
+    mentions_alibi?: boolean;
+};
+
 export interface LlmProvider {
     chat(options: { model?: string; messages: LlmMessage[]; temperature?: number }): Promise<{ text: string }>;
+    extractClaimsFromMessages?(messages: LlmMessage[]): Promise<Claims>;
 }
 
 export async function getLlmProvider(): Promise<LlmProvider> {

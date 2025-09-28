@@ -53,3 +53,5 @@ ehthumbs.db
 Thumbs.db
 
 x402-backend/node_modules
+asa-agents/.venv
+asa-agents/app/__pycache__
