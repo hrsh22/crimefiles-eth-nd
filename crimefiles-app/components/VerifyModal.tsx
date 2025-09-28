@@ -36,7 +36,8 @@ export default function VerifyModal({ open, onClose, onVerified }: Props) {
                 }
             }).build()
             setSelfApp(app)
-            setUniversalLink(getUniversalLink(app))
+            // Cast to align differing @selfxyz/common versions between packages
+            setUniversalLink(getUniversalLink(app as unknown as any))
         } catch (error) {
             console.error("Failed to initialize Self app:", error)
         }
