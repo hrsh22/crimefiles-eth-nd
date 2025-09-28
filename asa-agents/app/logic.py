@@ -1,3 +1,4 @@
+import os
 from typing import List, Dict, Any
 from .models import InterrogationPayload, InterrogationResult, Lead
 from .engine_metta import MettaEngine, MettaNotAvailable
@@ -37,20 +38,21 @@ def metta_like_reasoning(case_file: Dict[str, Any], suspect_id: str, claims: Dic
 
 
 def analyze_interrogation(payload: InterrogationPayload) -> InterrogationResult:
-    # Try Metta first if available
-    try:
-        with open("app/rules/leads.metta", "r", encoding="utf-8") as f:
-            rules = f.read()
-        engine = MettaEngine(rules)
-        leads, score = engine.run_reasoning(payload.dict())
-        # Convert to models
-        lead_models = [Lead(title=l["title"], tags=l.get("tags", []), justification=l.get("justification", "")) for l in leads]
-        return InterrogationResult(leads=lead_models, consistency=score)
-    except MettaNotAvailable:
-        pass
-    except Exception:
-        # fall back to heuristics on any engine/rule error
-        pass
+    # Try Metta first if enabled (disabled by default for serverless read-only FS like Vercel)
+    if os.getenv("ASA_METTA_ENABLED", "0") == "1":
+        try:
+            with open("app/rules/leads.metta", "r", encoding="utf-8") as f:
+                rules = f.read()
+            engine = MettaEngine(rules)
+            leads, score = engine.run_reasoning(payload.dict())
+            # Convert to models
+            lead_models = [Lead(title=l["title"], tags=l.get("tags", []), justification=l.get("justification", "")) for l in leads]
+            return InterrogationResult(leads=lead_models, consistency=score)
+        except MettaNotAvailable:
+            pass
+        except Exception:
+            # fall back to heuristics on any engine/rule error
+            pass
 
     # Fallback heuristic
     claims = simple_claim_extraction([m.dict() for m in payload.messages])
